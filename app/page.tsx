@@ -120,13 +120,8 @@ export default function HomePage() {
       <MobileHeader />
 
       <main className="container mx-auto px-4 py-4">
-        {/* Emergency Alert */}
-        <EmergencyAlert
-          title="Heavy Rainfall Alert"
-          message="Heavy rainfall expected in Mumbai region for next 48 hours. Please stay indoors and avoid unnecessary travel."
-          authority="Mumbai Meteorological Department"
-          timestamp="2 hours ago"
-        />
+        {/* Emergency Alert - Fetches active alerts from API */}
+        <EmergencyAlert />
 
         <div className="flex flex-col md:flex-row gap-6 w-full mt-4">
           {/* Mobile Tabs - Only visible on mobile */}
