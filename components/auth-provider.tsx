@@ -38,6 +38,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 // Routes that don't require authentication
 const PUBLIC_ROUTES = ["/", "/login", "/signup", "/schemes", "/jobs", "/forgot-password"]
 
+// Check if a pathname is a public route or a sub-path of a public route
+function isPublicRoute(pathname: string): boolean {
+  return PUBLIC_ROUTES.some(route => {
+    if (pathname === route) return true
+    // Only allow sub-paths for routes that logically have them
+    if (route === "/schemes" || route === "/jobs") {
+      return pathname.startsWith(route + "/")
+    }
+    return false
+  })
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -69,12 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Redirect unauthenticated users from protected routes
   useEffect(() => {
-    if (!isLoading && !user && !PUBLIC_ROUTES.includes(pathname)) {
-      // Check if the path starts with any public route patterns
-      const isPublicPath = PUBLIC_ROUTES.some(route => pathname.startsWith(route + "/") || pathname === route)
-      if (!isPublicPath) {
-        router.push("/login")
-      }
+    if (!isLoading && !user && !isPublicRoute(pathname)) {
+      router.push("/login")
     }
   }, [isLoading, user, pathname, router])
 

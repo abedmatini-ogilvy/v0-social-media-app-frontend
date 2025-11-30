@@ -423,24 +423,30 @@ function PostCard({ post }: PostCardProps) {
       return
     }
 
+    // Store previous state for rollback
+    const previousLiked = liked
+    const previousLikeCount = likeCount
+
+    // Optimistic update
+    setLiked(!liked)
+    setLikeCount((prev) => (liked ? prev - 1 : prev + 1))
+
     setIsLiking(true)
     try {
       const token = getToken()
       if (token) {
-        if (liked) {
+        if (previousLiked) {
           await unlikePost(post.id, token)
-          setLikeCount((prev) => prev - 1)
         } else {
           await likePost(post.id, token)
-          setLikeCount((prev) => prev + 1)
         }
-        setLiked(!liked)
       }
     } catch (err) {
       console.error("Failed to like post:", err)
-      // Optimistic update - toggle anyway for better UX
-      setLiked(!liked)
-      setLikeCount((prev) => (liked ? prev - 1 : prev + 1))
+      // Rollback on error
+      setLiked(previousLiked)
+      setLikeCount(previousLikeCount)
+      toast.error("Failed to update like. Please try again.")
     } finally {
       setIsLiking(false)
     }

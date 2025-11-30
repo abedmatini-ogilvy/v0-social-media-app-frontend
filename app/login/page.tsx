@@ -50,7 +50,9 @@ export default function LoginPage() {
       return
     }
     
-    // For officials, we use the official ID as email for now
+    // TODO: Implement proper official ID authentication flow with DigiLocker integration
+    // See: docs/backend-spec.md for planned official verification endpoints
+    // For now, officials login using their official ID as email identifier
     const success = await login(officialId, officialPassword)
     if (success) {
       router.push("/")

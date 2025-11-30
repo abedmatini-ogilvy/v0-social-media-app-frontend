@@ -127,10 +127,10 @@ const getHeaders = (token?: string, isFormData?: boolean) => {
 }
 
 // Generic API request function with improved error handling
-export async function apiRequest<T>(
+export async function apiRequest<T, D = unknown>(
   url: string,
   method: "GET" | "POST" | "PUT" | "DELETE" = "GET",
-  data?: unknown,
+  data?: D,
   token?: string,
 ): Promise<T> {
   try {

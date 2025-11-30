@@ -51,8 +51,17 @@ export default function SignupPage() {
       return
     }
     
-    if (citizenPassword.length < 6) {
-      setCitizenError("Password must be at least 6 characters")
+    if (citizenPassword.length < 8) {
+      setCitizenError("Password must be at least 8 characters")
+      return
+    }
+    
+    // Basic password strength check
+    const hasUpperCase = /[A-Z]/.test(citizenPassword)
+    const hasLowerCase = /[a-z]/.test(citizenPassword)
+    const hasNumbers = /\d/.test(citizenPassword)
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+      setCitizenError("Password must contain uppercase, lowercase, and numbers")
       return
     }
     
@@ -82,8 +91,17 @@ export default function SignupPage() {
       return
     }
     
-    if (officialPassword.length < 6) {
-      setOfficialError("Password must be at least 6 characters")
+    if (officialPassword.length < 8) {
+      setOfficialError("Password must be at least 8 characters")
+      return
+    }
+    
+    // Basic password strength check
+    const hasUpperCase = /[A-Z]/.test(officialPassword)
+    const hasLowerCase = /[a-z]/.test(officialPassword)
+    const hasNumbers = /\d/.test(officialPassword)
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+      setOfficialError("Password must contain uppercase, lowercase, and numbers")
       return
     }
     
