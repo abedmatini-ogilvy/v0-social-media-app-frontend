@@ -209,7 +209,7 @@ export async function getUserProfile(token: string): Promise<User> {
   return apiRequest<User>(API_ENDPOINTS.USER.PROFILE, "GET", undefined, token)
 }
 
-export async function updateUserProfile(data: Partial<User>, token: string): Promise<User> {
+export async function updateUserProfile(token: string, data: Partial<User>): Promise<User> {
   return apiRequest<User>(API_ENDPOINTS.USER.UPDATE_PROFILE, "PUT", data, token)
 }
 

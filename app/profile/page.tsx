@@ -134,7 +134,7 @@ export default function ProfilePage() {
         phone: formData.get("phone") as string,
         website: formData.get("website") as string,
       }
-      await updateUserProfile(updateData, token)
+      await updateUserProfile(token, updateData)
       setProfile(prev => ({
         ...prev,
         name: updateData.name || prev.name,

@@ -53,10 +53,10 @@ export default function SearchPage() {
   const renderUserCard = (user: User) => (
     <div key={user.id} className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
       <div className="flex items-start gap-3">
-        <Avatar><AvatarImage src={user.avatar || "/placeholder.svg"} /><AvatarFallback className="bg-blue-500">{user.name[0]}</AvatarFallback></Avatar>
+        <Avatar><AvatarImage src={user.avatar || "/placeholder.svg"} /><AvatarFallback className="bg-blue-500">{user.name?.[0] || "U"}</AvatarFallback></Avatar>
         <div>
           <div className="flex items-center">
-            <h3 className="font-medium">{user.name}</h3>
+            <h3 className="font-medium">{user.name || "Unknown"}</h3>
             {user.isVerified && <CheckCircle className="h-4 w-4 text-blue-500 fill-blue-500 ml-1" />}
           </div>
           <p className="text-sm text-gray-500">{user.role === "official" ? "Government Official" : "Citizen"}</p>
