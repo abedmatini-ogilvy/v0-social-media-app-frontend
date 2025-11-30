@@ -1,0 +1,241 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  citizen
+  official
+}
+
+enum NotificationType {
+  alert
+  message
+  connection
+  application
+  system
+}
+
+enum ApplicationStatus {
+  pending
+  approved
+  rejected
+  under_review
+}
+
+model User {
+  id         String   @id @default(cuid())
+  name       String
+  email      String   @unique
+  password   String
+  avatar     String?
+  role       UserRole @default(citizen)
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  posts              Post[]
+  comments           Comment[]
+  notifications      Notification[]
+  schemeApplications SchemeApplication[]
+  jobApplications    JobApplication[]
+  eventAttendees     EventAttendee[]
+  sentMessages       Message[]           @relation("SentMessages")
+  receivedMessages   Message[]           @relation("ReceivedMessages")
+  connections        Connection[]        @relation("UserConnections")
+  connectedTo        Connection[]        @relation("ConnectedToUser")
+  conversationsAsUser1 Conversation[]    @relation("User1Conversations")
+  conversationsAsUser2 Conversation[]    @relation("User2Conversations")
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  content   String
+  image     String?
+  likes     Int      @default(0)
+  comments  Int      @default(0)
+  shares    Int      @default(0)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  commentList Comment[]
+
+  @@index([authorId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@index([authorId])
+}
+
+model Scheme {
+  id                 String   @id @default(cuid())
+  title              String
+  description        String
+  deadline           DateTime
+  isNew              Boolean  @default(true)
+  eligibility        String
+  documents          String[]
+  fundingDetails     String
+  applicationProcess String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  applications SchemeApplication[]
+}
+
+model SchemeApplication {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schemeId  String
+  scheme    Scheme            @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+  status    ApplicationStatus @default(pending)
+  appliedAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([userId, schemeId])
+  @@index([userId])
+  @@index([schemeId])
+}
+
+model Job {
+  id           String   @id @default(cuid())
+  title        String
+  company      String
+  location     String
+  description  String
+  requirements String[]
+  salary       String?
+  isNew        Boolean  @default(true)
+  postedAt     DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  applications JobApplication[]
+}
+
+model JobApplication {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  status    ApplicationStatus @default(pending)
+  appliedAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([userId, jobId])
+  @@index([userId])
+  @@index([jobId])
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  date        DateTime
+  location    String
+  description String
+  organizer   String
+  attendees   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  eventAttendees EventAttendee[]
+}
+
+model EventAttendee {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId  String
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  content   String
+  isRead    Boolean          @default(false)
+  actionUrl String?
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+}
+
+model Connection {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("UserConnections", fields: [userId], references: [id], onDelete: Cascade)
+  connectedId String
+  connected   User     @relation("ConnectedToUser", fields: [connectedId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, connectedId])
+  @@index([userId])
+  @@index([connectedId])
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  user1Id   String
+  user1     User     @relation("User1Conversations", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2Id   String
+  user2     User     @relation("User2Conversations", fields: [user2Id], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages Message[]
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  content        String
+  senderId       String
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId     String
+  receiver       User         @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+model EmergencyAlert {
+  id        String    @id @default(cuid())
+  title     String
+  message   String
+  authority String
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+}
