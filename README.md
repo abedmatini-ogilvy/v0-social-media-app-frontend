@@ -11,7 +11,51 @@ This repository contains the frontend code for the CivicConnect civic-tech web a
 - User profiles with customization options
 - Dark mode support
 - Accessibility features
-- Prepared for backend integration
+- **Real API integration** with backend services
+- **Authentication** with login, signup, and logout functionality
+- **Token management** with automatic refresh
+- **Loading states** and error handling
+
+## Quick Start
+
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Copy environment configuration: `cp .env.local.example .env.local`
+4. Configure the API URL in `.env.local`
+5. Run the development server: `npm run dev`
+6. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Environment Configuration
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```env
+# API Base URL - Required
+# Development: http://localhost:3001/api
+# Production: https://api.civicconnect.example/api
+NEXT_PUBLIC_API_URL=http://localhost:3001/api
+```
+
+## Project Structure
+
+```
+├── app/                    # Next.js App Router pages
+│   ├── login/             # Login page with API integration
+│   ├── signup/            # Signup page with API integration
+│   ├── profile/           # User profile page
+│   └── ...
+├── components/            # React components
+│   ├── auth-provider.tsx  # Authentication context provider
+│   ├── social-feed.tsx    # Social feed with API integration
+│   └── ui/                # shadcn/ui components
+├── lib/                   # Utility libraries
+│   ├── api-service.ts     # API endpoints and request methods
+│   ├── auth-service.ts    # Authentication and token management
+│   ├── types.ts           # TypeScript interfaces (matching Prisma schema)
+│   └── utils.ts           # Utility functions
+└── docs/
+    └── backend-spec.md    # Backend API specification
+```
 
 ## Backend Integration Guide
 
@@ -21,6 +65,7 @@ The application is designed to work with a RESTful API backend. The API service 
 
 - `lib/api-service.ts`: Contains all API endpoints and request methods
 - `lib/auth-service.ts`: Handles authentication, token management, and session persistence
+- `lib/types.ts`: TypeScript interfaces matching the Prisma schema
 
 ### Authentication Flow
 
@@ -42,6 +87,24 @@ The application is designed to work with a RESTful API backend. The API service 
 4. **Logout**:
    - Sends POST request to `/auth/logout`
    - Clears stored tokens and user data
+
+### Authentication Context
+
+The `AuthProvider` component wraps the entire application and provides:
+- User state management
+- Login/logout/register functions
+- Loading states
+- Protected route handling
+
+```tsx
+import { useAuth } from "@/components/auth-provider"
+
+function MyComponent() {
+  const { user, isLoggedIn, login, logout, isLoading } = useAuth()
+  
+  // Use authentication state
+}
+```
 
 ### Data Models
 

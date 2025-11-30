@@ -3,8 +3,27 @@
  * This file contains all the API endpoints and methods for interacting with the backend
  */
 
-// Base API URL - would be set from environment variables in production
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.civicconnect.example"
+import type {
+  User,
+  Post,
+  Comment,
+  Scheme,
+  SchemeApplication,
+  Job,
+  JobApplication,
+  Event,
+  Notification,
+  EmergencyAlert,
+  Conversation,
+  Message,
+  AuthResponse,
+  ApiError,
+  PaginatedResponse,
+  SearchResponse,
+} from "./types"
+
+// Base API URL - set from environment variables
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
 
 // API endpoints
 export const API_ENDPOINTS = {
@@ -93,9 +112,11 @@ export const API_ENDPOINTS = {
 }
 
 // HTTP request headers
-const getHeaders = (token?: string) => {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+const getHeaders = (token?: string, isFormData?: boolean) => {
+  const headers: Record<string, string> = {}
+
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json"
   }
 
   if (token) {
@@ -105,78 +126,254 @@ const getHeaders = (token?: string) => {
   return headers
 }
 
-// Generic API request function
-export async function apiRequest<T>(
+// Generic API request function with improved error handling
+export async function apiRequest<T, D = unknown>(
   url: string,
   method: "GET" | "POST" | "PUT" | "DELETE" = "GET",
-  data?: any,
+  data?: D,
   token?: string,
 ): Promise<T> {
   try {
+    const isFormData = data instanceof FormData
     const options: RequestInit = {
       method,
-      headers: getHeaders(token),
+      headers: getHeaders(token, isFormData),
     }
 
     if (data) {
-      options.body = JSON.stringify(data)
+      options.body = isFormData ? data : JSON.stringify(data)
     }
 
     const response = await fetch(url, options)
 
     // Handle unauthorized errors (expired token)
     if (response.status === 401) {
-      // Attempt to refresh token or redirect to login
-      // This would be implemented based on your auth strategy
       throw new Error("Unauthorized - Please login again")
     }
 
+    // Handle other error responses
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || "API request failed")
+      let errorMessage = "API request failed"
+      try {
+        const errorData: ApiError = await response.json()
+        errorMessage = errorData.error?.message || errorMessage
+      } catch {
+        // If we can't parse the error, use the status text
+        errorMessage = response.statusText || errorMessage
+      }
+      throw new Error(errorMessage)
+    }
+
+    // Handle empty responses (204 No Content)
+    if (response.status === 204) {
+      return {} as T
     }
 
     return await response.json()
   } catch (error) {
+    if (error instanceof Error) {
+      console.error("API request failed:", error.message)
+      throw error
+    }
     console.error("API request failed:", error)
-    throw error
+    throw new Error("An unexpected error occurred")
   }
 }
 
-// Example usage of the API service:
-/*
-// Authentication
-export async function loginUser(email: string, password: string) {
-  return apiRequest<{ token: string, user: User }>(
-    API_ENDPOINTS.AUTH.LOGIN,
-    'POST',
-    { email, password }
-  );
+// ==================== AUTH API ====================
+
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>(API_ENDPOINTS.AUTH.LOGIN, "POST", { email, password })
 }
 
-// Get user profile
-export async function getUserProfile(token: string) {
-  return apiRequest<User>(
-    API_ENDPOINTS.USER.PROFILE,
-    'GET',
-    undefined,
-    token
-  );
+export async function register(userData: {
+  name: string
+  email: string
+  password: string
+  role: "citizen" | "official"
+}): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>(API_ENDPOINTS.AUTH.REGISTER, "POST", userData)
 }
 
-// Create a post
-export async function createPost(content: string, image?: File, token: string) {
-  const formData = new FormData();
-  formData.append('content', content);
+export async function refreshToken(refreshToken: string): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>(API_ENDPOINTS.AUTH.REFRESH_TOKEN, "POST", { refreshToken })
+}
+
+export async function logout(token: string): Promise<void> {
+  return apiRequest<void>(API_ENDPOINTS.AUTH.LOGOUT, "POST", undefined, token)
+}
+
+// ==================== USER API ====================
+
+export async function getUserProfile(token: string): Promise<User> {
+  return apiRequest<User>(API_ENDPOINTS.USER.PROFILE, "GET", undefined, token)
+}
+
+export async function updateUserProfile(token: string, data: Partial<User>): Promise<User> {
+  return apiRequest<User>(API_ENDPOINTS.USER.UPDATE_PROFILE, "PUT", data, token)
+}
+
+export async function getConnections(token: string): Promise<User[]> {
+  return apiRequest<User[]>(API_ENDPOINTS.USER.CONNECTIONS, "GET", undefined, token)
+}
+
+export async function getSuggestedConnections(token: string): Promise<User[]> {
+  return apiRequest<User[]>(API_ENDPOINTS.USER.SUGGESTED_CONNECTIONS, "GET", undefined, token)
+}
+
+export async function connectWithUser(userId: string, token: string): Promise<void> {
+  return apiRequest<void>(API_ENDPOINTS.USER.CONNECT(userId), "POST", undefined, token)
+}
+
+export async function disconnectFromUser(userId: string, token: string): Promise<void> {
+  return apiRequest<void>(API_ENDPOINTS.USER.DISCONNECT(userId), "DELETE", undefined, token)
+}
+
+// ==================== POSTS API ====================
+
+export async function getPostsFeed(token: string): Promise<Post[]> {
+  return apiRequest<Post[]>(API_ENDPOINTS.POSTS.FEED, "GET", undefined, token)
+}
+
+export async function createPost(content: string, token: string, image?: File): Promise<Post> {
   if (image) {
-    formData.append('image', image);
+    const formData = new FormData()
+    formData.append("content", content)
+    formData.append("image", image)
+    return apiRequest<Post>(API_ENDPOINTS.POSTS.CREATE, "POST", formData, token)
   }
-  
-  return apiRequest<Post>(
-    API_ENDPOINTS.POSTS.CREATE,
-    'POST',
-    formData,
-    token
-  );
+  return apiRequest<Post>(API_ENDPOINTS.POSTS.CREATE, "POST", { content }, token)
 }
-*/
+
+export async function getPost(postId: string, token: string): Promise<Post> {
+  return apiRequest<Post>(API_ENDPOINTS.POSTS.GET(postId), "GET", undefined, token)
+}
+
+export async function updatePost(postId: string, content: string, token: string): Promise<Post> {
+  return apiRequest<Post>(API_ENDPOINTS.POSTS.UPDATE(postId), "PUT", { content }, token)
+}
+
+export async function deletePost(postId: string, token: string): Promise<void> {
+  return apiRequest<void>(API_ENDPOINTS.POSTS.DELETE(postId), "DELETE", undefined, token)
+}
+
+export async function likePost(postId: string, token: string): Promise<void> {
+  return apiRequest<void>(API_ENDPOINTS.POSTS.LIKE(postId), "POST", undefined, token)
+}
+
+export async function unlikePost(postId: string, token: string): Promise<void> {
+  return apiRequest<void>(API_ENDPOINTS.POSTS.UNLIKE(postId), "DELETE", undefined, token)
+}
+
+export async function getPostComments(postId: string, token: string): Promise<Comment[]> {
+  return apiRequest<Comment[]>(API_ENDPOINTS.POSTS.COMMENTS(postId), "GET", undefined, token)
+}
+
+export async function addComment(postId: string, content: string, token: string): Promise<Comment> {
+  return apiRequest<Comment>(API_ENDPOINTS.POSTS.ADD_COMMENT(postId), "POST", { content }, token)
+}
+
+// ==================== SCHEMES API ====================
+
+export async function getSchemes(): Promise<Scheme[]> {
+  return apiRequest<Scheme[]>(API_ENDPOINTS.SCHEMES.LIST, "GET")
+}
+
+export async function getScheme(schemeId: string): Promise<Scheme> {
+  return apiRequest<Scheme>(API_ENDPOINTS.SCHEMES.GET(schemeId), "GET")
+}
+
+export async function applyForScheme(schemeId: string, token: string): Promise<SchemeApplication> {
+  return apiRequest<SchemeApplication>(API_ENDPOINTS.SCHEMES.APPLY(schemeId), "POST", undefined, token)
+}
+
+export async function getMySchemeApplications(token: string): Promise<SchemeApplication[]> {
+  return apiRequest<SchemeApplication[]>(API_ENDPOINTS.SCHEMES.MY_APPLICATIONS, "GET", undefined, token)
+}
+
+export async function getSchemeApplicationStatus(applicationId: string, token: string): Promise<SchemeApplication> {
+  return apiRequest<SchemeApplication>(API_ENDPOINTS.SCHEMES.APPLICATION_STATUS(applicationId), "GET", undefined, token)
+}
+
+// ==================== JOBS API ====================
+
+export async function getJobs(): Promise<Job[]> {
+  return apiRequest<Job[]>(API_ENDPOINTS.JOBS.LIST, "GET")
+}
+
+export async function getJob(jobId: string): Promise<Job> {
+  return apiRequest<Job>(API_ENDPOINTS.JOBS.GET(jobId), "GET")
+}
+
+export async function applyForJob(jobId: string, token: string): Promise<JobApplication> {
+  return apiRequest<JobApplication>(API_ENDPOINTS.JOBS.APPLY(jobId), "POST", undefined, token)
+}
+
+export async function getMyJobApplications(token: string): Promise<JobApplication[]> {
+  return apiRequest<JobApplication[]>(API_ENDPOINTS.JOBS.MY_APPLICATIONS, "GET", undefined, token)
+}
+
+// ==================== EVENTS API ====================
+
+export async function getEvents(): Promise<Event[]> {
+  return apiRequest<Event[]>(API_ENDPOINTS.EVENTS.LIST, "GET")
+}
+
+export async function getEvent(eventId: string): Promise<Event> {
+  return apiRequest<Event>(API_ENDPOINTS.EVENTS.GET(eventId), "GET")
+}
+
+export async function attendEvent(eventId: string, token: string): Promise<void> {
+  return apiRequest<void>(API_ENDPOINTS.EVENTS.ATTEND(eventId), "POST", undefined, token)
+}
+
+export async function getMyEvents(token: string): Promise<Event[]> {
+  return apiRequest<Event[]>(API_ENDPOINTS.EVENTS.MY_EVENTS, "GET", undefined, token)
+}
+
+// ==================== NOTIFICATIONS API ====================
+
+export async function getNotifications(token: string): Promise<Notification[]> {
+  return apiRequest<Notification[]>(API_ENDPOINTS.NOTIFICATIONS.LIST, "GET", undefined, token)
+}
+
+export async function markNotificationAsRead(notificationId: string, token: string): Promise<void> {
+  return apiRequest<void>(API_ENDPOINTS.NOTIFICATIONS.MARK_READ(notificationId), "PUT", undefined, token)
+}
+
+export async function markAllNotificationsAsRead(token: string): Promise<void> {
+  return apiRequest<void>(API_ENDPOINTS.NOTIFICATIONS.MARK_ALL_READ, "PUT", undefined, token)
+}
+
+// ==================== MESSAGES API ====================
+
+export async function getConversations(token: string): Promise<Conversation[]> {
+  return apiRequest<Conversation[]>(API_ENDPOINTS.MESSAGES.CONVERSATIONS, "GET", undefined, token)
+}
+
+export async function getConversation(conversationId: string, token: string): Promise<Message[]> {
+  return apiRequest<Message[]>(API_ENDPOINTS.MESSAGES.CONVERSATION(conversationId), "GET", undefined, token)
+}
+
+export async function sendMessage(receiverId: string, content: string, token: string): Promise<Message> {
+  return apiRequest<Message>(API_ENDPOINTS.MESSAGES.SEND, "POST", { receiverId, content }, token)
+}
+
+// ==================== SEARCH API ====================
+
+export async function search(query: string, token: string): Promise<SearchResponse> {
+  return apiRequest<SearchResponse>(`${API_ENDPOINTS.SEARCH}?q=${encodeURIComponent(query)}`, "GET", undefined, token)
+}
+
+// ==================== EMERGENCY ALERTS API ====================
+
+export async function getEmergencyAlerts(): Promise<EmergencyAlert[]> {
+  return apiRequest<EmergencyAlert[]>(API_ENDPOINTS.EMERGENCY_ALERTS.LIST, "GET")
+}
+
+export async function getEmergencyAlert(alertId: string): Promise<EmergencyAlert> {
+  return apiRequest<EmergencyAlert>(API_ENDPOINTS.EMERGENCY_ALERTS.GET(alertId), "GET")
+}
+
+// Re-export types
+export type { User, Post, Comment, Scheme, Job, Event, Notification, EmergencyAlert, AuthResponse, ApiError }
