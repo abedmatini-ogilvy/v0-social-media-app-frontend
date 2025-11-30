@@ -16,6 +16,7 @@ import emergencyAlertRoutes from './routes/emergencyAlerts.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
+import { apiLimiter } from './middleware/rateLimit.js';
 
 const app: Express = express();
 
@@ -28,7 +29,10 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check endpoint
+// Apply general rate limiting to all API routes
+app.use('/api', apiLimiter);
+
+// Health check endpoint (excluded from rate limiting)
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

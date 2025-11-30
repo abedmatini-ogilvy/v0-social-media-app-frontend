@@ -11,6 +11,15 @@ export interface JwtPayload {
   exp: number;
 }
 
+// Get JWT secret with production validation
+const getJwtSecret = (): string => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required in production');
+  }
+  return secret || 'dev-secret-change-in-production';
+};
+
 export const authenticate = (
   req: AuthRequest,
   res: Response,
@@ -41,7 +50,7 @@ export const authenticate = (
       return;
     }
 
-    const secret = process.env.JWT_SECRET || 'default-secret';
+    const secret = getJwtSecret();
     const decoded = jwt.verify(token, secret) as JwtPayload;
 
     req.userId = decoded.userId;
@@ -88,7 +97,7 @@ export const optionalAuth = (
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       if (token) {
-        const secret = process.env.JWT_SECRET || 'default-secret';
+        const secret = getJwtSecret();
         const decoded = jwt.verify(token, secret) as JwtPayload;
         req.userId = decoded.userId;
       }

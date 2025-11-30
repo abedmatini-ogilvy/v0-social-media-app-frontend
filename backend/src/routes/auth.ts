@@ -2,9 +2,13 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { validate } from '../middleware/validate.js';
 import { authenticate } from '../middleware/auth.js';
+import { authLimiter, strictLimiter } from '../middleware/rateLimit.js';
 import * as authController from '../controllers/authController.js';
 
 const router = Router();
+
+// Apply auth rate limiter to all auth routes
+router.use(authLimiter);
 
 // Register validation
 const registerValidation = [
@@ -30,8 +34,8 @@ router.post('/register', validate(registerValidation), authController.register);
 router.post('/login', validate(loginValidation), authController.login);
 router.post('/logout', authenticate, authController.logout);
 router.post('/refresh-token', authController.refreshToken);
-router.post('/forgot-password', authController.forgotPassword);
-router.post('/reset-password', authController.resetPassword);
+router.post('/forgot-password', strictLimiter, authController.forgotPassword);
+router.post('/reset-password', strictLimiter, authController.resetPassword);
 router.post('/verify-email', authController.verifyEmail);
 
 export default router;

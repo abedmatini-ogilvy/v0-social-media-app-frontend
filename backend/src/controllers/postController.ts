@@ -258,10 +258,21 @@ export const unlikePost = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const { postId } = req.params;
 
-    // For MVP, we use simple counter decrement
+    // First get current post to check likes count
+    const currentPost = await prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!currentPost) {
+      throw new AppError('Post not found', 404, 'NOT_FOUND');
+    }
+
+    // Only decrement if likes > 0 to prevent negative values
+    const newLikes = Math.max(0, currentPost.likes - 1);
+    
     const post = await prisma.post.update({
       where: { id: postId },
-      data: { likes: { decrement: 1 } },
+      data: { likes: newLikes },
       include: {
         author: {
           select: {
@@ -277,16 +288,11 @@ export const unlikePost = async (req: AuthRequest, res: Response): Promise<void>
       },
     });
 
-    // Ensure likes don't go below 0
-    if (post.likes < 0) {
-      await prisma.post.update({
-        where: { id: postId },
-        data: { likes: 0 },
-      });
-    }
-
     res.json(formatPostResponse(post));
   } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
     throw new AppError('Failed to unlike post', 500, 'INTERNAL_ERROR');
   }
 };
