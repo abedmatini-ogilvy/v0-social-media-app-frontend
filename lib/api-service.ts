@@ -213,6 +213,10 @@ export async function updateUserProfile(token: string, data: Partial<User>): Pro
   return apiRequest<User>(API_ENDPOINTS.USER.UPDATE_PROFILE, "PUT", data, token)
 }
 
+export async function getUserPosts(token: string): Promise<Post[]> {
+  return apiRequest<Post[]>(`${API_BASE_URL}/posts/my-posts`, "GET", undefined, token)
+}
+
 export async function getConnections(token: string): Promise<User[]> {
   return apiRequest<User[]>(API_ENDPOINTS.USER.CONNECTIONS, "GET", undefined, token)
 }
