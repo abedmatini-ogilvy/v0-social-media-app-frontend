@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { validate } from '../middleware/validate.js';
 import { authenticate } from '../middleware/auth.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 import * as postController from '../controllers/postController.js';
 
 const router = Router();
@@ -26,15 +27,15 @@ const commentValidation = [
   body('content').trim().notEmpty().withMessage('Comment content is required'),
 ];
 
-// Routes
-router.get('/feed', postController.getFeed);
-router.post('/', validate(createPostValidation), postController.createPost);
-router.get('/:postId', postController.getPost);
-router.put('/:postId', validate(updatePostValidation), postController.updatePost);
-router.delete('/:postId', postController.deletePost);
-router.post('/:postId/like', postController.likePost);
-router.delete('/:postId/unlike', postController.unlikePost);
-router.get('/:postId/comments', postController.getComments);
-router.post('/:postId/comments', validate(commentValidation), postController.addComment);
+// Routes - wrapped with asyncHandler
+router.get('/feed', asyncHandler(postController.getFeed));
+router.post('/', validate(createPostValidation), asyncHandler(postController.createPost));
+router.get('/:postId', asyncHandler(postController.getPost));
+router.put('/:postId', validate(updatePostValidation), asyncHandler(postController.updatePost));
+router.delete('/:postId', asyncHandler(postController.deletePost));
+router.post('/:postId/like', asyncHandler(postController.likePost));
+router.delete('/:postId/unlike', asyncHandler(postController.unlikePost));
+router.get('/:postId/comments', asyncHandler(postController.getComments));
+router.post('/:postId/comments', validate(commentValidation), asyncHandler(postController.addComment));
 
 export default router;

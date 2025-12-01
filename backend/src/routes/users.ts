@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { validate } from '../middleware/validate.js';
 import { authenticate } from '../middleware/auth.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 import * as userController from '../controllers/userController.js';
 
 const router = Router();
@@ -23,17 +24,17 @@ const changePasswordValidation = [
     .withMessage('New password must be at least 6 characters'),
 ];
 
-// Routes
-router.get('/profile', userController.getProfile);
-router.put('/profile', validate(updateProfileValidation), userController.updateProfile);
+// Routes - wrapped with asyncHandler
+router.get('/profile', asyncHandler(userController.getProfile));
+router.put('/profile', validate(updateProfileValidation), asyncHandler(userController.updateProfile));
 router.put(
   '/change-password',
   validate(changePasswordValidation),
-  userController.changePassword
+  asyncHandler(userController.changePassword)
 );
-router.get('/connections', userController.getConnections);
-router.post('/connect/:userId', userController.connect);
-router.delete('/disconnect/:userId', userController.disconnect);
-router.get('/suggested-connections', userController.getSuggestedConnections);
+router.get('/connections', asyncHandler(userController.getConnections));
+router.post('/connect/:userId', asyncHandler(userController.connect));
+router.delete('/disconnect/:userId', asyncHandler(userController.disconnect));
+router.get('/suggested-connections', asyncHandler(userController.getSuggestedConnections));
 
 export default router;

@@ -6,7 +6,19 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:g1": "playwright test e2e/tests/01-health.spec.ts --reporter=line",
+    "test:g2": "playwright test e2e/tests/02-auth-api.spec.ts --reporter=line",
+    "test:g3": "playwright test e2e/tests/03-auth-ui.spec.ts --reporter=line",
+    "test:g4": "playwright test e2e/tests/04-posts-api.spec.ts --reporter=line",
+    "test:g5": "playwright test e2e/tests/05-users-api.spec.ts --reporter=line",
+    "test:g6": "playwright test e2e/tests/06-public-api.spec.ts --reporter=line",
+    "test:g7": "playwright test e2e/tests/07-protected-api.spec.ts --reporter=line",
+    "test:report": "playwright show-report"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -61,9 +73,11 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.2.3",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"

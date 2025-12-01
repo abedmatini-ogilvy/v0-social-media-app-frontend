@@ -3,6 +3,7 @@ import { body } from 'express-validator';
 import { validate } from '../middleware/validate.js';
 import { authenticate } from '../middleware/auth.js';
 import { authLimiter, strictLimiter } from '../middleware/rateLimit.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 import * as authController from '../controllers/authController.js';
 
 const router = Router();
@@ -29,13 +30,13 @@ const loginValidation = [
   body('password').notEmpty().withMessage('Password is required'),
 ];
 
-// Routes
-router.post('/register', validate(registerValidation), authController.register);
-router.post('/login', validate(loginValidation), authController.login);
-router.post('/logout', authenticate, authController.logout);
-router.post('/refresh-token', authController.refreshToken);
-router.post('/forgot-password', strictLimiter, authController.forgotPassword);
-router.post('/reset-password', strictLimiter, authController.resetPassword);
-router.post('/verify-email', authController.verifyEmail);
+// Routes - wrapped with asyncHandler to catch errors
+router.post('/register', validate(registerValidation), asyncHandler(authController.register));
+router.post('/login', validate(loginValidation), asyncHandler(authController.login));
+router.post('/logout', authenticate, asyncHandler(authController.logout));
+router.post('/refresh-token', asyncHandler(authController.refreshToken));
+router.post('/forgot-password', strictLimiter, asyncHandler(authController.forgotPassword));
+router.post('/reset-password', strictLimiter, asyncHandler(authController.resetPassword));
+router.post('/verify-email', asyncHandler(authController.verifyEmail));
 
 export default router;
