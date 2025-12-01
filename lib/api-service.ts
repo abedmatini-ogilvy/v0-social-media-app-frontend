@@ -236,7 +236,13 @@ export async function disconnectFromUser(userId: string, token: string): Promise
 // ==================== POSTS API ====================
 
 export async function getPostsFeed(token: string): Promise<Post[]> {
-  return apiRequest<Post[]>(API_ENDPOINTS.POSTS.FEED, "GET", undefined, token)
+  const response = await apiRequest<{ posts: Post[]; pagination: unknown }>(
+    API_ENDPOINTS.POSTS.FEED,
+    "GET",
+    undefined,
+    token
+  )
+  return response.posts
 }
 
 export async function createPost(content: string, token: string, image?: File): Promise<Post> {
