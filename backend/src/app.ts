@@ -15,6 +15,9 @@ import messageRoutes from './routes/messages.js';
 import searchRoutes from './routes/search.js';
 import emergencyAlertRoutes from './routes/emergencyAlerts.js';
 import uploadRoutes from './routes/upload.js';
+import adminRoutes from './routes/admin.js';
+import reportRoutes from './routes/reports.js';
+import announcementRoutes from './routes/announcements.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -54,6 +57,9 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/emergency-alerts', emergencyAlertRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/announcements', announcementRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

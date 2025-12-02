@@ -15,13 +15,30 @@ async function main() {
   await prisma.eventAttendee.deleteMany();
   await prisma.jobApplication.deleteMany();
   await prisma.schemeApplication.deleteMany();
+  await prisma.report.deleteMany();
+  await prisma.announcement.deleteMany();
   await prisma.comment.deleteMany();
   await prisma.post.deleteMany();
   await prisma.event.deleteMany();
   await prisma.job.deleteMany();
   await prisma.scheme.deleteMany();
   await prisma.emergencyAlert.deleteMany();
+  await prisma.userSettings.deleteMany();
   await prisma.user.deleteMany();
+
+  // Create admin user first
+  console.log('👑 Creating admin user...');
+  const adminPassword = await bcrypt.hash('Admin@123456', 10);
+  const admin = await prisma.user.create({
+    data: {
+      name: 'Admin User',
+      email: 'admin@civicconnect.com',
+      password: adminPassword,
+      role: 'admin',
+      isVerified: true,
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
+    },
+  });
 
   // Create users
   console.log('👤 Creating users...');
@@ -470,12 +487,16 @@ async function main() {
 
   console.log('✅ Seed completed successfully!');
   console.log('\n📊 Summary:');
+  console.log(`   Admin: 1`);
   console.log(`   Users: ${users.length}`);
   console.log(`   Schemes: ${schemes.length}`);
   console.log(`   Jobs: ${jobs.length}`);
   console.log(`   Events: ${events.length}`);
   console.log(`   Posts: ${posts.length}`);
-  console.log('\n🔑 Test Credentials:');
+  console.log('\n🔑 Admin Credentials:');
+  console.log('   Email: admin@civicconnect.com');
+  console.log('   Password: Admin@123456');
+  console.log('\n🔑 Test User Credentials:');
   console.log('   Email: priya@example.com');
   console.log('   Password: password123');
 }

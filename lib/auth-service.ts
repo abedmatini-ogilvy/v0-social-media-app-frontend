@@ -11,7 +11,7 @@ export interface User {
   name: string
   email: string
   avatar?: string
-  role: "citizen" | "official"
+  role: "citizen" | "official" | "admin"
   isVerified: boolean
   createdAt: string
 }

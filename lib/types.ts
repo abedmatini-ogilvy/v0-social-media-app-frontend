@@ -4,9 +4,14 @@
  */
 
 // Enums
-export type UserRole = "citizen" | "official"
+export type UserRole = "citizen" | "official" | "admin"
 export type NotificationType = "alert" | "message" | "connection" | "application" | "system"
 export type ApplicationStatus = "pending" | "approved" | "rejected" | "under_review"
+export type ReportReason = "misinformation" | "harassment" | "spam" | "scam" | "inappropriate" | "other"
+export type ReportStatus = "pending" | "reviewed" | "dismissed" | "action_taken"
+export type ReportAction = "warning" | "post_removed" | "user_suspended" | "user_banned"
+export type AnnouncementPriority = "low" | "medium" | "high" | "urgent"
+export type AnnouncementStatus = "draft" | "scheduled" | "published" | "archived"
 
 // User model
 export interface User {
@@ -21,11 +26,64 @@ export interface User {
   phone?: string | null
   website?: string | null
   interests?: string[]
+  address?: string | null
+  city?: string | null
+  state?: string | null
+  pincode?: string | null
   connections?: number
   role: UserRole
   isVerified: boolean
+  // Ban/Suspension fields
+  isBanned?: boolean
+  banReason?: string | null
+  bannedAt?: string | null
+  bannedBy?: string | null
+  suspendedUntil?: string | null
   createdAt: string
   updatedAt?: string
+  // Counts for admin
+  _count?: {
+    posts?: number
+    reportsMade?: number
+    comments?: number
+    connections?: number
+  }
+  reportsAgainst?: number
+}
+
+// User Settings model
+export interface UserSettings {
+  id: string
+  userId: string
+  // Notification preferences
+  emailNotifications: boolean
+  smsNotifications: boolean
+  pushNotifications: boolean
+  emergencyAlerts: boolean
+  schemeUpdates: boolean
+  communityUpdates: boolean
+  // Privacy settings
+  profileVisibility: "everyone" | "connections" | "officials" | "none"
+  postVisibility: "everyone" | "connections" | "officials" | "none"
+  locationSharing: boolean
+  dataAnalytics: boolean
+  personalizedAds: boolean
+  // Security
+  twoFactorEnabled: boolean
+  loginAlerts: boolean
+  // Language preferences
+  primaryLanguage: string
+  secondaryLanguage?: string | null
+  autoTranslate: boolean
+  // Appearance
+  theme: "light" | "dark" | "system"
+  fontSize: number
+  // Accessibility
+  highContrast: boolean
+  largeText: boolean
+  screenReader: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 // Post model
@@ -185,6 +243,113 @@ export interface EmergencyAlert {
   isActive: boolean
   createdAt: string
   expiresAt?: string | null
+}
+
+// Report model
+export interface Report {
+  id: string
+  postId?: string | null
+  post?: {
+    id: string
+    content: string
+    author?: {
+      id: string
+      name: string
+      email?: string
+      avatar?: string | null
+    }
+  } | null
+  commentId?: string | null
+  comment?: {
+    id: string
+    content: string
+    author?: {
+      id: string
+      name: string
+      email?: string
+      avatar?: string | null
+    }
+  } | null
+  reporterId: string
+  reporter?: {
+    id: string
+    name: string
+    email?: string
+    avatar?: string | null
+  }
+  reason: ReportReason
+  description?: string | null
+  status: ReportStatus
+  reviewedBy?: string | null
+  reviewer?: {
+    id: string
+    name: string
+  } | null
+  reviewedAt?: string | null
+  action?: ReportAction | null
+  contentType?: "post" | "comment"
+  createdAt: string
+  updatedAt: string
+}
+
+// Announcement model
+export interface Announcement {
+  id: string
+  title: string
+  content: string
+  department?: string | null
+  priority: AnnouncementPriority
+  status: AnnouncementStatus
+  audience?: string | null
+  scheduledFor?: string | null
+  publishedAt?: string | null
+  createdBy: string
+  creator?: {
+    id: string
+    name: string
+    avatar?: string | null
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+// Admin Analytics types
+export interface AdminOverviewStats {
+  totalUsers: number
+  totalPosts: number
+  totalComments: number
+  totalReports: number
+  pendingReports: number
+  verifiedOfficials: number
+  newUsersToday: number
+  newPostsToday: number
+  bannedUsers: number
+  totalAnnouncements: number
+}
+
+export interface UserAnalytics {
+  userGrowth: Record<string, number>
+  roleDistribution: Array<{ role: UserRole; count: number }>
+  totalNewUsers: number
+}
+
+export interface PostAnalytics {
+  postGrowth: Record<string, number>
+  totalNewPosts: number
+  engagement: {
+    totalLikes: number
+    totalComments: number
+    totalShares: number
+    avgLikesPerPost: number | string
+    avgCommentsPerPost: number | string
+  }
+}
+
+export interface ReportAnalytics {
+  byStatus: Array<{ status: ReportStatus; count: number }>
+  byReason: Array<{ reason: ReportReason; count: number }>
+  byAction: Array<{ action: ReportAction | null; count: number }>
+  reportsLast7Days: number
 }
 
 // API Response types

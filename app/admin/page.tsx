@@ -1,20 +1,20 @@
 "use client"
 
 import { Switch } from "@/components/ui/switch"
-
 import { CardFooter } from "@/components/ui/card"
-
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { BarChart3, Bell, ChevronDown, Flag, Home, Search, Settings, Shield, User } from "lucide-react"
+import { BarChart3, Bell, ChevronDown, Flag, Home, Search, Settings, Shield, User, Users, Ban, Loader2, MoreHorizontal, Key, UserCheck, Trash2 } from "lucide-react"
 import Link from "next/link"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -23,146 +23,232 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-
-// Sample data for flagged content
-const flaggedContent = [
-  {
-    id: 1,
-    author: {
-      name: "Anonymous User",
-      handle: "anonymous123",
-      avatar: "/placeholder.svg?height=40&width=40",
-    },
-    content: "This post contains misleading information about the new water conservation policy.",
-    timestamp: "2 hours ago",
-    flags: 5,
-    reason: "Misinformation",
-    status: "pending",
-  },
-  {
-    id: 2,
-    author: {
-      name: "Rajesh Kumar",
-      handle: "rajesh_k",
-      avatar: "/placeholder.svg?height=40&width=40",
-    },
-    content: "This comment contains inappropriate language and personal attacks against a government official.",
-    timestamp: "5 hours ago",
-    flags: 12,
-    reason: "Harassment",
-    status: "pending",
-  },
-  {
-    id: 3,
-    author: {
-      name: "Priya Sharma",
-      handle: "priya_s",
-      avatar: "/placeholder.svg?height=40&width=40",
-    },
-    content: "This post is promoting a fake government scheme and asking for personal information.",
-    timestamp: "1 day ago",
-    flags: 8,
-    reason: "Scam",
-    status: "pending",
-  },
-  {
-    id: 4,
-    author: {
-      name: "Amit Patel",
-      handle: "amit_p",
-      avatar: "/placeholder.svg?height=40&width=40",
-    },
-    content: "This post contains spam links to external websites.",
-    timestamp: "2 days ago",
-    flags: 3,
-    reason: "Spam",
-    status: "resolved",
-  },
-]
-
-// Sample data for verification requests
-const verificationRequests = [
-  {
-    id: 1,
-    name: "Dr. Suresh Mehta",
-    position: "Chief Medical Officer",
-    department: "Health Department",
-    organization: "Mumbai Municipal Corporation",
-    avatar: "/placeholder.svg?height=40&width=40",
-    email: "suresh.mehta@mumbai.gov.in",
-    phone: "+91 9876543210",
-    status: "pending",
-    documents: ["ID Card", "Appointment Letter", "Aadhaar Card"],
-    requestDate: "June 10, 2023",
-  },
-  {
-    id: 2,
-    name: "Anita Desai",
-    position: "Senior Engineer",
-    department: "Public Works Department",
-    organization: "Delhi Development Authority",
-    avatar: "/placeholder.svg?height=40&width=40",
-    email: "anita.desai@dda.gov.in",
-    phone: "+91 9876543211",
-    status: "pending",
-    documents: ["ID Card", "Appointment Letter", "Aadhaar Card"],
-    requestDate: "June 9, 2023",
-  },
-  {
-    id: 3,
-    name: "Vikram Singh",
-    position: "District Collector",
-    department: "Revenue Department",
-    organization: "Government of Maharashtra",
-    avatar: "/placeholder.svg?height=40&width=40",
-    email: "vikram.singh@maharashtra.gov.in",
-    phone: "+91 9876543212",
-    status: "pending",
-    documents: ["ID Card", "Appointment Letter", "Aadhaar Card"],
-    requestDate: "June 8, 2023",
-  },
-]
-
-// Sample data for announcements
-const announcements = [
-  {
-    id: 1,
-    title: "Water Supply Interruption",
-    content:
-      "Due to maintenance work, water supply will be interrupted in Sectors 10-15 on June 15, 2023, from 10:00 AM to 2:00 PM.",
-    department: "Water Department",
-    status: "scheduled",
-    scheduledDate: "June 15, 2023",
-    audience: "Mumbai - Andheri",
-    priority: "medium",
-  },
-  {
-    id: 2,
-    title: "Road Closure for Construction",
-    content:
-      "MG Road will be closed for traffic from June 20-25, 2023, due to metro construction work. Please use alternative routes.",
-    department: "Traffic Police",
-    status: "scheduled",
-    scheduledDate: "June 20, 2023",
-    audience: "Bangalore - MG Road Area",
-    priority: "high",
-  },
-  {
-    id: 3,
-    title: "Free Health Checkup Camp",
-    content:
-      "A free health checkup camp will be organized at the Community Center, Sector 15, on June 18, 2023, from 9:00 AM to 5:00 PM.",
-    department: "Health Department",
-    status: "published",
-    publishedDate: "June 5, 2023",
-    audience: "All Delhi Residents",
-    priority: "medium",
-  },
-]
+import { toast } from "sonner"
+import {
+  User as UserType,
+  Report,
+  Announcement,
+  AdminOverviewStats,
+  ReportStatus,
+  ReportAction,
+  AnnouncementPriority,
+} from "@/lib/types"
+import {
+  getOverviewStats,
+  getAdminUsers,
+  getAdminReports,
+  getAdminAnnouncements,
+  reviewReport,
+  banUser,
+  unbanUser,
+  suspendUser,
+  updateAdminUser,
+  deleteAdminUser,
+  resetUserPassword,
+  createAnnouncement,
+  publishAnnouncement,
+  deleteAnnouncement,
+} from "@/lib/admin-api-service"
 
 export default function AdminDashboardPage() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("overview")
   const [searchQuery, setSearchQuery] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [token, setToken] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<UserType | null>(null)
+  
+  // Data states
+  const [stats, setStats] = useState<AdminOverviewStats | null>(null)
+  const [users, setUsers] = useState<UserType[]>([])
+  const [reports, setReports] = useState<Report[]>([])
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [reportFilter, setReportFilter] = useState<string>("all")
+  
+  // Announcement form state
+  const [newAnnouncement, setNewAnnouncement] = useState({
+    title: "",
+    content: "",
+    department: "",
+    priority: "medium" as AnnouncementPriority,
+    audience: "all",
+  })
+
+  // Check authentication and admin role
+  useEffect(() => {
+    const storedToken = localStorage.getItem("civicconnect_token")
+    const storedUser = localStorage.getItem("civicconnect_user")
+    
+    if (!storedToken || !storedUser) {
+      router.push("/login")
+      return
+    }
+    
+    const user = JSON.parse(storedUser) as UserType
+    if (user.role !== "admin") {
+      toast.error("Access denied. Admin privileges required.")
+      router.push("/")
+      return
+    }
+    
+    setToken(storedToken)
+    setCurrentUser(user)
+  }, [router])
+
+  // Fetch data when token is available
+  const fetchData = useCallback(async () => {
+    if (!token) return
+    
+    setLoading(true)
+    try {
+      const [statsData, usersData, reportsData, announcementsData] = await Promise.all([
+        getOverviewStats(token),
+        getAdminUsers(token, { limit: 50 }),
+        getAdminReports(token, { limit: 50 }),
+        getAdminAnnouncements(token, { limit: 50 }),
+      ])
+      
+      setStats(statsData)
+      setUsers(usersData.users)
+      setReports(reportsData.reports)
+      setAnnouncements(announcementsData.announcements)
+    } catch (error) {
+      console.error("Failed to fetch admin data:", error)
+      toast.error("Failed to load admin data")
+    } finally {
+      setLoading(false)
+    }
+  }, [token])
+
+  useEffect(() => {
+    if (token) {
+      fetchData()
+    }
+  }, [token, fetchData])
+
+  // Handle report actions
+  const handleReviewReport = async (reportId: string, status: ReportStatus, action?: ReportAction) => {
+    if (!token) return
+    try {
+      await reviewReport(token, reportId, { status, action })
+      toast.success("Report reviewed successfully")
+      fetchData()
+    } catch (error) {
+      toast.error("Failed to review report")
+    }
+  }
+
+  // Handle user actions
+  const handleBanUser = async (userId: string, reason?: string) => {
+    if (!token) return
+    try {
+      await banUser(token, userId, reason)
+      toast.success("User banned successfully")
+      fetchData()
+    } catch (error) {
+      toast.error("Failed to ban user")
+    }
+  }
+
+  const handleUnbanUser = async (userId: string) => {
+    if (!token) return
+    try {
+      await unbanUser(token, userId)
+      toast.success("User unbanned successfully")
+      fetchData()
+    } catch (error) {
+      toast.error("Failed to unban user")
+    }
+  }
+
+  const handleVerifyUser = async (userId: string, isVerified: boolean) => {
+    if (!token) return
+    try {
+      await updateAdminUser(token, userId, { isVerified })
+      toast.success(isVerified ? "User verified" : "User unverified")
+      fetchData()
+    } catch (error) {
+      toast.error("Failed to update user")
+    }
+  }
+
+  // Handle announcement actions
+  const handleCreateAnnouncement = async () => {
+    if (!token || !newAnnouncement.title || !newAnnouncement.content) {
+      toast.error("Title and content are required")
+      return
+    }
+    try {
+      await createAnnouncement(token, newAnnouncement)
+      toast.success("Announcement created successfully")
+      setNewAnnouncement({ title: "", content: "", department: "", priority: "medium", audience: "all" })
+      fetchData()
+    } catch (error) {
+      toast.error("Failed to create announcement")
+    }
+  }
+
+  const handlePublishAnnouncement = async (announcementId: string) => {
+    if (!token) return
+    try {
+      await publishAnnouncement(token, announcementId)
+      toast.success("Announcement published")
+      fetchData()
+    } catch (error) {
+      toast.error("Failed to publish announcement")
+    }
+  }
+
+  const handleDeleteAnnouncement = async (announcementId: string) => {
+    if (!token) return
+    try {
+      await deleteAnnouncement(token, announcementId)
+      toast.success("Announcement deleted")
+      fetchData()
+    } catch (error) {
+      toast.error("Failed to delete announcement")
+    }
+  }
+
+  // Handle delete user
+  const handleDeleteUser = async (userId: string) => {
+    if (!token) return
+    try {
+      await deleteAdminUser(token, userId)
+      toast.success("User deleted successfully")
+      fetchData()
+    } catch (error) {
+      toast.error("Failed to delete user")
+    }
+  }
+
+  // Handle reset password
+  const handleResetPassword = async (userId: string, newPassword: string) => {
+    if (!token) return
+    try {
+      await resetUserPassword(token, userId, newPassword)
+      toast.success("Password reset successfully")
+    } catch (error) {
+      toast.error("Failed to reset password")
+    }
+  }
+
+  // Filter reports
+  const filteredReports = reportFilter === "all" 
+    ? reports 
+    : reports.filter(r => r.status === reportFilter)
+
+  // Loading state
+  if (loading && !stats) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-600" />
+          <p className="text-gray-600 dark:text-gray-400">Loading admin panel...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950">
@@ -193,6 +279,19 @@ export default function AdminDashboardPage() {
               >
                 <Home className="h-5 w-5 mr-2" />
                 Overview
+              </Button>
+
+              <Button
+                variant={activeTab === "users" ? "default" : "ghost"}
+                className={`w-full justify-start ${
+                  activeTab === "users"
+                    ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                    : ""
+                }`}
+                onClick={() => setActiveTab("users")}
+              >
+                <Users className="h-5 w-5 mr-2" />
+                User Management
               </Button>
 
               <Button
@@ -265,12 +364,12 @@ export default function AdminDashboardPage() {
           <div className="p-4 border-t border-gray-200 dark:border-gray-800">
             <div className="flex items-center">
               <Avatar className="h-8 w-8 mr-2">
-                <AvatarImage src="/placeholder.svg?height=32&width=32" alt="Admin" />
-                <AvatarFallback className="bg-purple-700">AD</AvatarFallback>
+                <AvatarImage src={currentUser?.avatar || "/placeholder.svg?height=32&width=32"} alt="Admin" />
+                <AvatarFallback className="bg-purple-700">{currentUser?.name?.[0] || "A"}</AvatarFallback>
               </Avatar>
               <div>
-                <p className="text-sm font-medium">Admin User</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Super Admin</p>
+                <p className="text-sm font-medium">{currentUser?.name || "Admin User"}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Administrator</p>
               </div>
             </div>
           </div>
@@ -346,8 +445,8 @@ export default function AdminDashboardPage() {
                       <CardDescription>Active users on the platform</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold">125,430</div>
-                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">+12.5% from last month</p>
+                      <div className="text-3xl font-bold">{stats?.totalUsers?.toLocaleString() || 0}</div>
+                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">+{stats?.newUsersToday || 0} new today</p>
                     </CardContent>
                   </Card>
 
@@ -357,30 +456,30 @@ export default function AdminDashboardPage() {
                       <CardDescription>Government officials on the platform</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold">1,245</div>
-                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">+5.2% from last month</p>
+                      <div className="text-3xl font-bold">{stats?.verifiedOfficials?.toLocaleString() || 0}</div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Verified accounts</p>
                     </CardContent>
                   </Card>
 
                   <Card className="border-purple-100 dark:border-purple-900">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Active Schemes</CardTitle>
-                      <CardDescription>Government schemes available</CardDescription>
+                      <CardTitle className="text-lg">Total Posts</CardTitle>
+                      <CardDescription>Content on the platform</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold">78</div>
-                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">+3 new this month</p>
+                      <div className="text-3xl font-bold">{stats?.totalPosts?.toLocaleString() || 0}</div>
+                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">+{stats?.newPostsToday || 0} new today</p>
                     </CardContent>
                   </Card>
 
                   <Card className="border-purple-100 dark:border-purple-900">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Content Reports</CardTitle>
-                      <CardDescription>Pending content moderation</CardDescription>
+                      <CardTitle className="text-lg">Pending Reports</CardTitle>
+                      <CardDescription>Content moderation needed</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold">24</div>
-                      <p className="text-sm text-red-600 dark:text-red-400 mt-1">+8 new today</p>
+                      <div className="text-3xl font-bold">{stats?.pendingReports || 0}</div>
+                      <p className="text-sm text-red-600 dark:text-red-400 mt-1">{stats?.bannedUsers || 0} users banned</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -388,72 +487,38 @@ export default function AdminDashboardPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card className="border-purple-100 dark:border-purple-900">
                     <CardHeader>
-                      <CardTitle>Recent Activity</CardTitle>
-                      <CardDescription>Latest actions on the platform</CardDescription>
+                      <CardTitle>Recent Users</CardTitle>
+                      <CardDescription>Latest registered users</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <ScrollArea className="h-[300px]">
                         <div className="space-y-4">
-                          <div className="flex items-start gap-3">
-                            <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                              <User className="h-4 w-4" />
+                          {users.slice(0, 5).map((user) => (
+                            <div key={user.id} className="flex items-start gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                                <AvatarFallback>{user.name[0]}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-medium">{user.name}</p>
+                                  {user.isVerified && (
+                                    <Badge variant="secondary" className="text-xs">Verified</Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {user.role} • Joined {new Date(user.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              {user.isBanned && (
+                                <Badge variant="destructive" className="text-xs">Banned</Badge>
+                              )}
                             </div>
-                            <div>
-                              <p className="text-sm font-medium">New user registered</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Priya Sharma from Mumbai</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">10 minutes ago</p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-start gap-3">
-                            <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
-                              <Shield className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">Official verification approved</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Dr. Rajesh Kumar - Health Department
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">30 minutes ago</p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-start gap-3">
-                            <div className="h-8 w-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-400">
-                              <Flag className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">Content reported</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Post ID #12345 reported for misinformation
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">1 hour ago</p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-start gap-3">
-                            <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                              <Bell className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">Emergency alert published</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Heavy rainfall alert for Mumbai region
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">2 hours ago</p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-start gap-3">
-                            <div className="h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400">
-                              <BarChart3 className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">Analytics report generated</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Monthly user engagement report</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">3 hours ago</p>
-                            </div>
-                          </div>
+                          ))}
+                          {users.length === 0 && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No users found</p>
+                          )}
                         </div>
                       </ScrollArea>
                     </CardContent>
@@ -467,84 +532,90 @@ export default function AdminDashboardPage() {
                     <CardContent>
                       <ScrollArea className="h-[300px]">
                         <div className="space-y-4">
-                          <div className="p-3 border border-red-200 dark:border-red-900 rounded-lg bg-red-50 dark:bg-red-900/20">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-medium text-red-800 dark:text-red-400">Content Moderation</p>
-                                <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                                  24 posts flagged for review
-                                </p>
+                          {(stats?.pendingReports || 0) > 0 && (
+                            <div className="p-3 border border-red-200 dark:border-red-900 rounded-lg bg-red-50 dark:bg-red-900/20">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <p className="font-medium text-red-800 dark:text-red-400">Content Moderation</p>
+                                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                                    {stats?.pendingReports} reports pending review
+                                  </p>
+                                </div>
+                                <Badge className="bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-300">
+                                  Urgent
+                                </Badge>
                               </div>
-                              <Badge className="bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-300">
-                                Urgent
-                              </Badge>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-2 border-red-300 text-red-700 dark:border-red-800 dark:text-red-400"
+                                onClick={() => setActiveTab("content")}
+                              >
+                                Review Now
+                              </Button>
                             </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="mt-2 border-red-300 text-red-700 dark:border-red-800 dark:text-red-400"
-                              onClick={() => setActiveTab("content")}
-                            >
-                              Review Now
-                            </Button>
-                          </div>
+                          )}
 
-                          <div className="p-3 border border-orange-200 dark:border-orange-900 rounded-lg bg-orange-50 dark:bg-orange-900/20">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-medium text-orange-800 dark:text-orange-400">
-                                  Verification Requests
-                                </p>
-                                <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
-                                  12 officials waiting for verification
-                                </p>
+                          {users.filter(u => u.role === "official" && !u.isVerified).length > 0 && (
+                            <div className="p-3 border border-orange-200 dark:border-orange-900 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <p className="font-medium text-orange-800 dark:text-orange-400">
+                                    Verification Requests
+                                  </p>
+                                  <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                                    {users.filter(u => u.role === "official" && !u.isVerified).length} officials waiting for verification
+                                  </p>
+                                </div>
+                                <Badge className="bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-300">
+                                  High
+                                </Badge>
                               </div>
-                              <Badge className="bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-300">
-                                High
-                              </Badge>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-2 border-orange-300 text-orange-700 dark:border-orange-800 dark:text-orange-400"
+                                onClick={() => setActiveTab("verification")}
+                              >
+                                Review Now
+                              </Button>
                             </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="mt-2 border-orange-300 text-orange-700 dark:border-orange-800 dark:text-orange-400"
-                              onClick={() => setActiveTab("verification")}
-                            >
-                              Review Now
-                            </Button>
-                          </div>
+                          )}
 
-                          <div className="p-3 border border-blue-200 dark:border-blue-900 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-medium text-blue-800 dark:text-blue-400">Scheduled Announcements</p>
-                                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                                  5 announcements scheduled for this week
-                                </p>
+                          {announcements.filter(a => a.status === "draft").length > 0 && (
+                            <div className="p-3 border border-blue-200 dark:border-blue-900 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <p className="font-medium text-blue-800 dark:text-blue-400">Draft Announcements</p>
+                                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                                    {announcements.filter(a => a.status === "draft").length} announcements ready to publish
+                                  </p>
+                                </div>
+                                <Badge className="bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                                  Medium
+                                </Badge>
                               </div>
-                              <Badge className="bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                                Medium
-                              </Badge>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-2 border-blue-300 text-blue-700 dark:border-blue-800 dark:text-blue-400"
+                                onClick={() => setActiveTab("announcements")}
+                              >
+                                Review Now
+                              </Button>
                             </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="mt-2 border-blue-300 text-blue-700 dark:border-blue-800 dark:text-blue-400"
-                              onClick={() => setActiveTab("announcements")}
-                            >
-                              Review Now
-                            </Button>
-                          </div>
+                          )}
 
                           <div className="p-3 border border-green-200 dark:border-green-900 rounded-lg bg-green-50 dark:bg-green-900/20">
                             <div className="flex justify-between items-start">
                               <div>
-                                <p className="font-medium text-green-800 dark:text-green-400">Analytics Reports</p>
+                                <p className="font-medium text-green-800 dark:text-green-400">Platform Stats</p>
                                 <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                                  Monthly engagement report ready for review
+                                  {stats?.totalUsers || 0} users • {stats?.totalPosts || 0} posts
                                 </p>
                               </div>
                               <Badge className="bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-300">
-                                Low
+                                Info
                               </Badge>
                             </div>
                             <Button
@@ -553,14 +624,250 @@ export default function AdminDashboardPage() {
                               className="mt-2 border-green-300 text-green-700 dark:border-green-800 dark:text-green-400"
                               onClick={() => setActiveTab("analytics")}
                             >
-                              View Report
+                              View Analytics
                             </Button>
                           </div>
+
+                          {(stats?.pendingReports || 0) === 0 && 
+                           users.filter(u => u.role === "official" && !u.isVerified).length === 0 && 
+                           announcements.filter(a => a.status === "draft").length === 0 && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                              All caught up! No pending tasks.
+                            </p>
+                          )}
                         </div>
                       </ScrollArea>
                     </CardContent>
                   </Card>
                 </div>
+              </div>
+            )}
+
+            {/* User Management Tab */}
+            {activeTab === "users" && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h1 className="text-2xl font-bold">User Management</h1>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Search users..."
+                        className="pl-10 w-[250px] border-purple-200 dark:border-purple-900"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                    <Select defaultValue="all">
+                      <SelectTrigger className="w-[150px]">
+                        <SelectValue placeholder="Filter by role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Roles</SelectItem>
+                        <SelectItem value="citizen">Citizens</SelectItem>
+                        <SelectItem value="official">Officials</SelectItem>
+                        <SelectItem value="admin">Admins</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* User Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <Card className="border-purple-100 dark:border-purple-900">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                          <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">{users.length}</p>
+                          <p className="text-sm text-gray-500">Total Users</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-purple-100 dark:border-purple-900">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                          <Shield className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">{users.filter(u => u.isVerified).length}</p>
+                          <p className="text-sm text-gray-500">Verified</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-purple-100 dark:border-purple-900">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                          <User className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">{users.filter(u => u.role === "official").length}</p>
+                          <p className="text-sm text-gray-500">Officials</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-purple-100 dark:border-purple-900">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                          <Ban className="h-5 w-5 text-red-600 dark:text-red-400" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">{users.filter(u => u.isBanned).length}</p>
+                          <p className="text-sm text-gray-500">Banned</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Users Table */}
+                <Card className="border-purple-100 dark:border-purple-900">
+                  <CardHeader>
+                    <CardTitle>All Users</CardTitle>
+                    <CardDescription>Manage user accounts and permissions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-4 font-medium text-gray-500">User</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-500">Role</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-500">Status</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-500">Joined</th>
+                            <th className="text-right py-3 px-4 font-medium text-gray-500">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {users
+                            .filter(user => 
+                              user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              user.email.toLowerCase().includes(searchQuery.toLowerCase())
+                            )
+                            .map((user) => (
+                            <tr key={user.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-10 w-10">
+                                    <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                                    <AvatarFallback>{user.name[0]}</AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="font-medium">{user.name}</p>
+                                    <p className="text-sm text-gray-500">{user.email}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <Badge 
+                                  variant={user.role === "admin" ? "default" : user.role === "official" ? "secondary" : "outline"}
+                                  className={user.role === "admin" ? "bg-purple-600" : ""}
+                                >
+                                  {user.role}
+                                </Badge>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex flex-wrap gap-1">
+                                  {user.isVerified && (
+                                    <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                      Verified
+                                    </Badge>
+                                  )}
+                                  {user.isBanned && (
+                                    <Badge variant="destructive">Banned</Badge>
+                                  )}
+                                  {!user.isVerified && !user.isBanned && (
+                                    <Badge variant="outline">Active</Badge>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-sm text-gray-500">
+                                {new Date(user.createdAt).toLocaleDateString()}
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex justify-end gap-2">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="sm">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={() => handleVerifyUser(user.id, !user.isVerified)}>
+                                        <Shield className="h-4 w-4 mr-2" />
+                                        {user.isVerified ? "Remove Verification" : "Verify User"}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem 
+                                        onClick={() => {
+                                          const newPassword = prompt("Enter new password for user:")
+                                          if (newPassword && newPassword.length >= 6) {
+                                            handleResetPassword(user.id, newPassword)
+                                          } else if (newPassword) {
+                                            toast.error("Password must be at least 6 characters")
+                                          }
+                                        }}
+                                      >
+                                        <Key className="h-4 w-4 mr-2" />
+                                        Reset Password
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      {user.isBanned ? (
+                                        <DropdownMenuItem onClick={() => handleUnbanUser(user.id)}>
+                                          <UserCheck className="h-4 w-4 mr-2" />
+                                          Unban User
+                                        </DropdownMenuItem>
+                                      ) : (
+                                        <DropdownMenuItem 
+                                          className="text-orange-600"
+                                          onClick={() => {
+                                            const reason = prompt("Enter ban reason:")
+                                            if (reason) {
+                                              handleBanUser(user.id, reason)
+                                            }
+                                          }}
+                                        >
+                                          <Ban className="h-4 w-4 mr-2" />
+                                          Ban User
+                                        </DropdownMenuItem>
+                                      )}
+                                      <DropdownMenuItem 
+                                        className="text-red-600"
+                                        onClick={() => {
+                                          if (confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
+                                            handleDeleteUser(user.id)
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete User
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {users.length === 0 && (
+                        <div className="text-center py-8">
+                          <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                          <p className="text-gray-500">No users found</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
 
@@ -570,14 +877,14 @@ export default function AdminDashboardPage() {
                 <div className="flex justify-between items-center">
                   <h1 className="text-2xl font-bold">Content Moderation</h1>
                   <div className="flex items-center gap-2">
-                    <Select defaultValue="all">
+                    <Select value={reportFilter} onValueChange={setReportFilter}>
                       <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder="Filter by status" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Reports</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="resolved">Resolved</SelectItem>
+                        <SelectItem value="reviewed">Reviewed</SelectItem>
                         <SelectItem value="dismissed">Dismissed</SelectItem>
                       </SelectContent>
                     </Select>
@@ -588,81 +895,103 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  {flaggedContent.map((item) => (
-                    <Card key={item.id} className="border-purple-100 dark:border-purple-900">
-                      <CardContent className="p-4">
-                        <div className="flex flex-col md:flex-row gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-start gap-3 mb-3">
-                              <Avatar>
-                                <AvatarImage src={item.author.avatar || "/placeholder.svg"} alt={item.author.name} />
-                                <AvatarFallback>{item.author.name[0]}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="font-medium">{item.author.name}</p>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">@{item.author.handle}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">{item.timestamp}</p>
+                {filteredReports.length === 0 ? (
+                  <Card className="border-purple-100 dark:border-purple-900">
+                    <CardContent className="p-8 text-center">
+                      <Flag className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">No reports found</p>
+                      <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                        {reportFilter === "all" ? "There are no content reports yet." : `No ${reportFilter} reports.`}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredReports.map((report) => (
+                      <Card key={report.id} className="border-purple-100 dark:border-purple-900">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col md:flex-row gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-start gap-3 mb-3">
+                                <Avatar>
+                                  <AvatarImage src={report.reporter?.avatar || "/placeholder.svg"} alt={report.reporter?.name || "Reporter"} />
+                                  <AvatarFallback>{report.reporter?.name?.[0] || "R"}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="font-medium">Reported by: {report.reporter?.name || "Unknown"}</p>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    {report.contentType === "post" ? "Post" : "Comment"} Report
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {new Date(report.createdAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-md mb-3">
+                                <p className="text-sm font-medium mb-1">Reason: {report.reason}</p>
+                                {report.description && (
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">{report.description}</p>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800"
+                                >
+                                  {report.reason}
+                                </Badge>
+                                <Badge
+                                  variant={
+                                    report.status === "pending"
+                                      ? "outline"
+                                      : report.status === "reviewed"
+                                        ? "secondary"
+                                        : "destructive"
+                                  }
+                                  className={
+                                    report.status === "pending"
+                                      ? "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800"
+                                      : ""
+                                  }
+                                >
+                                  {report.status}
+                                </Badge>
                               </div>
                             </div>
 
-                            <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-md mb-3">
-                              <p className="text-sm">{item.content}</p>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              <Badge
+                            <div className="flex flex-col gap-2 min-w-[200px]">
+                              <Button 
+                                className="bg-red-600 hover:bg-red-700"
+                                onClick={() => handleReviewReport(report.id, "reviewed", "post_removed")}
+                                disabled={report.status !== "pending"}
+                              >
+                                Remove Content
+                              </Button>
+                              <Button
                                 variant="outline"
-                                className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800"
+                                className="border-orange-200 text-orange-700 dark:border-orange-800 dark:text-orange-400"
+                                onClick={() => handleReviewReport(report.id, "reviewed", "warning")}
+                                disabled={report.status !== "pending"}
                               >
-                                {item.reason}
-                              </Badge>
-                              <Badge
+                                Warn User
+                              </Button>
+                              <Button
                                 variant="outline"
-                                className="bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800"
+                                className="border-green-200 text-green-700 dark:border-green-800 dark:text-green-400"
+                                onClick={() => handleReviewReport(report.id, "dismissed")}
+                                disabled={report.status !== "pending"}
                               >
-                                {item.flags} flags
-                              </Badge>
-                              <Badge
-                                variant={
-                                  item.status === "pending"
-                                    ? "outline"
-                                    : item.status === "resolved"
-                                      ? "secondary"
-                                      : "destructive"
-                                }
-                                className={
-                                  item.status === "pending"
-                                    ? "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800"
-                                    : ""
-                                }
-                              >
-                                {item.status}
-                              </Badge>
+                                Dismiss Report
+                              </Button>
                             </div>
                           </div>
-
-                          <div className="flex flex-col gap-2 min-w-[200px]">
-                            <Button className="bg-red-600 hover:bg-red-700">Remove Content</Button>
-                            <Button
-                              variant="outline"
-                              className="border-orange-200 text-orange-700 dark:border-orange-800 dark:text-orange-400"
-                            >
-                              Warn User
-                            </Button>
-                            <Button
-                              variant="outline"
-                              className="border-green-200 text-green-700 dark:border-green-800 dark:text-green-400"
-                            >
-                              Dismiss Report
-                            </Button>
-                            <Button variant="ghost">View Details</Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -690,85 +1019,82 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  {verificationRequests.map((request) => (
-                    <Card key={request.id} className="border-purple-100 dark:border-purple-900">
-                      <CardContent className="p-4">
-                        <div className="flex flex-col md:flex-row gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-start gap-3 mb-3">
-                              <Avatar className="h-12 w-12">
-                                <AvatarImage src={request.avatar || "/placeholder.svg"} alt={request.name} />
-                                <AvatarFallback>{request.name[0]}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="font-medium text-lg">{request.name}</p>
-                                <p className="text-sm">{request.position}</p>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  {request.department}, {request.organization}
-                                </p>
+                {users.filter(u => u.role === "official" && !u.isVerified).length === 0 ? (
+                  <Card className="border-purple-100 dark:border-purple-900">
+                    <CardContent className="p-8 text-center">
+                      <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">No verification requests</p>
+                      <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                        There are no pending verification requests at this time.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {users.filter(u => u.role === "official" && !u.isVerified).map((user) => (
+                      <Card key={user.id} className="border-purple-100 dark:border-purple-900">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col md:flex-row gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-start gap-3 mb-3">
+                                <Avatar className="h-12 w-12">
+                                  <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                                  <AvatarFallback>{user.name[0]}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="font-medium text-lg">{user.name}</p>
+                                  <p className="text-sm">{user.bio || "Government Official"}</p>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    {user.email}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                                <div>
+                                  <p className="text-sm font-medium">Contact Information</p>
+                                  <p className="text-sm">Email: {user.email}</p>
+                                  <p className="text-sm">Role: {user.role}</p>
+                                </div>
+
+                                <div>
+                                  <p className="text-sm font-medium">Account Details</p>
+                                  <p className="text-sm">Joined: {new Date(user.createdAt).toLocaleDateString()}</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium">Status:</p>
+                                <Badge
+                                  variant="outline"
+                                  className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800"
+                                >
+                                  Pending Verification
+                                </Badge>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                              <div>
-                                <p className="text-sm font-medium">Contact Information</p>
-                                <p className="text-sm">Email: {request.email}</p>
-                                <p className="text-sm">Phone: {request.phone}</p>
-                              </div>
-
-                              <div>
-                                <p className="text-sm font-medium">Verification Documents</p>
-                                <ul className="list-disc list-inside text-sm">
-                                  {request.documents.map((doc, index) => (
-                                    <li key={index}>{doc}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 mb-3">
-                              <p className="text-sm font-medium">Request Date:</p>
-                              <p className="text-sm">{request.requestDate}</p>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-medium">Status:</p>
-                              <Badge
-                                variant={
-                                  request.status === "pending"
-                                    ? "outline"
-                                    : request.status === "approved"
-                                      ? "secondary"
-                                      : "destructive"
-                                }
-                                className={
-                                  request.status === "pending"
-                                    ? "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800"
-                                    : ""
-                                }
+                            <div className="flex flex-col gap-2 min-w-[200px]">
+                              <Button 
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => handleVerifyUser(user.id, true)}
                               >
-                                {request.status}
-                              </Badge>
+                                Approve
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="border-red-200 text-red-700 dark:border-red-800 dark:text-red-400"
+                                onClick={() => handleBanUser(user.id, "Verification rejected")}
+                              >
+                                Reject
+                              </Button>
                             </div>
                           </div>
-
-                          <div className="flex flex-col gap-2 min-w-[200px]">
-                            <Button className="bg-green-600 hover:bg-green-700">Approve</Button>
-                            <Button
-                              variant="outline"
-                              className="border-red-200 text-red-700 dark:border-red-800 dark:text-red-400"
-                            >
-                              Reject
-                            </Button>
-                            <Button variant="outline">Request More Info</Button>
-                            <Button variant="ghost">View Documents</Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -777,242 +1103,7 @@ export default function AdminDashboardPage() {
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h1 className="text-2xl font-bold">Announcements</h1>
-                  <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                    Create New Announcement
-                  </Button>
                 </div>
-
-                <Tabs defaultValue="all">
-                  <TabsList>
-                    <TabsTrigger value="all">All</TabsTrigger>
-                    <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
-                    <TabsTrigger value="published">Published</TabsTrigger>
-                    <TabsTrigger value="draft">Drafts</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="all" className="mt-4">
-                    <div className="space-y-4">
-                      {announcements.map((announcement) => (
-                        <Card key={announcement.id} className="border-purple-100 dark:border-purple-900">
-                          <CardContent className="p-4">
-                            <div className="flex flex-col md:flex-row gap-4">
-                              <div className="flex-1">
-                                <div className="flex justify-between items-start mb-3">
-                                  <div>
-                                    <h3 className="font-medium text-lg">{announcement.title}</h3>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                      {announcement.department}
-                                    </p>
-                                  </div>
-                                  <Badge
-                                    className={
-                                      announcement.priority === "high"
-                                        ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                                        : announcement.priority === "medium"
-                                          ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
-                                          : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                    }
-                                  >
-                                    {announcement.priority} priority
-                                  </Badge>
-                                </div>
-
-                                <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-md mb-3">
-                                  <p className="text-sm">{announcement.content}</p>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                                  <div>
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Status</p>
-                                    <Badge
-                                      variant={
-                                        announcement.status === "published"
-                                          ? "secondary"
-                                          : announcement.status === "scheduled"
-                                            ? "outline"
-                                            : "default"
-                                      }
-                                      className={
-                                        announcement.status === "scheduled"
-                                          ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800"
-                                          : ""
-                                      }
-                                    >
-                                      {announcement.status}
-                                    </Badge>
-                                  </div>
-
-                                  <div>
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                                      {announcement.status === "published" ? "Published Date" : "Scheduled Date"}
-                                    </p>
-                                    <p className="text-sm">
-                                      {announcement.status === "published"
-                                        ? announcement.publishedDate
-                                        : announcement.scheduledDate}
-                                    </p>
-                                  </div>
-
-                                  <div>
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Audience</p>
-                                    <p className="text-sm">{announcement.audience}</p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex flex-col gap-2 min-w-[200px]">
-                                <Button variant="outline">Edit</Button>
-                                {announcement.status === "scheduled" && (
-                                  <Button className="bg-green-600 hover:bg-green-700">Publish Now</Button>
-                                )}
-                                {announcement.status === "published" && (
-                                  <Button
-                                    variant="outline"
-                                    className="border-red-200 text-red-700 dark:border-red-800 dark:text-red-400"
-                                  >
-                                    Unpublish
-                                  </Button>
-                                )}
-                                <Button variant="ghost">View Details</Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="scheduled" className="mt-4">
-                    <div className="space-y-4">
-                      {announcements
-                        .filter((a) => a.status === "scheduled")
-                        .map((announcement) => (
-                          <Card key={announcement.id} className="border-purple-100 dark:border-purple-900">
-                            <CardContent className="p-4">
-                              <div className="flex flex-col md:flex-row gap-4">
-                                <div className="flex-1">
-                                  <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                      <h3 className="font-medium text-lg">{announcement.title}</h3>
-                                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        {announcement.department}
-                                      </p>
-                                    </div>
-                                    <Badge
-                                      className={
-                                        announcement.priority === "high"
-                                          ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                                          : announcement.priority === "medium"
-                                            ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
-                                            : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                      }
-                                    >
-                                      {announcement.priority} priority
-                                    </Badge>
-                                  </div>
-
-                                  <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-md mb-3">
-                                    <p className="text-sm">{announcement.content}</p>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                                    <div>
-                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                                        Scheduled Date
-                                      </p>
-                                      <p className="text-sm">{announcement.scheduledDate}</p>
-                                    </div>
-
-                                    <div>
-                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Audience</p>
-                                      <p className="text-sm">{announcement.audience}</p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="flex flex-col gap-2 min-w-[200px]">
-                                  <Button variant="outline">Edit</Button>
-                                  <Button className="bg-green-600 hover:bg-green-700">Publish Now</Button>
-                                  <Button variant="ghost">View Details</Button>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="published" className="mt-4">
-                    <div className="space-y-4">
-                      {announcements
-                        .filter((a) => a.status === "published")
-                        .map((announcement) => (
-                          <Card key={announcement.id} className="border-purple-100 dark:border-purple-900">
-                            <CardContent className="p-4">
-                              <div className="flex flex-col md:flex-row gap-4">
-                                <div className="flex-1">
-                                  <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                      <h3 className="font-medium text-lg">{announcement.title}</h3>
-                                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        {announcement.department}
-                                      </p>
-                                    </div>
-                                    <Badge
-                                      className={
-                                        announcement.priority === "high"
-                                          ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                                          : announcement.priority === "medium"
-                                            ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
-                                            : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                      }
-                                    >
-                                      {announcement.priority} priority
-                                    </Badge>
-                                  </div>
-
-                                  <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-md mb-3">
-                                    <p className="text-sm">{announcement.content}</p>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                                    <div>
-                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                                        Published Date
-                                      </p>
-                                      <p className="text-sm">{announcement.publishedDate}</p>
-                                    </div>
-
-                                    <div>
-                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Audience</p>
-                                      <p className="text-sm">{announcement.audience}</p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="flex flex-col gap-2 min-w-[200px]">
-                                  <Button variant="outline">Edit</Button>
-                                  <Button
-                                    variant="outline"
-                                    className="border-red-200 text-red-700 dark:border-red-800 dark:text-red-400"
-                                  >
-                                    Unpublish
-                                  </Button>
-                                  <Button variant="ghost">View Details</Button>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="draft" className="mt-4">
-                    <div className="p-8 text-center">
-                      <p className="text-gray-500 dark:text-gray-400">No draft announcements found.</p>
-                    </div>
-                  </TabsContent>
-                </Tabs>
 
                 {/* Create Announcement Form */}
                 <Card className="border-purple-100 dark:border-purple-900">
@@ -1026,6 +1117,8 @@ export default function AdminDashboardPage() {
                       <Input
                         placeholder="Enter announcement title"
                         className="border-purple-200 dark:border-purple-900"
+                        value={newAnnouncement.title}
+                        onChange={(e) => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })}
                       />
                     </div>
 
@@ -1034,29 +1127,28 @@ export default function AdminDashboardPage() {
                       <Textarea
                         placeholder="Enter announcement content"
                         className="min-h-[100px] border-purple-200 dark:border-purple-900"
+                        value={newAnnouncement.content}
+                        onChange={(e) => setNewAnnouncement({ ...newAnnouncement, content: e.target.value })}
                       />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Department</label>
-                        <Select>
-                          <SelectTrigger className="border-purple-200 dark:border-purple-900">
-                            <SelectValue placeholder="Select department" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="water">Water Department</SelectItem>
-                            <SelectItem value="health">Health Department</SelectItem>
-                            <SelectItem value="traffic">Traffic Police</SelectItem>
-                            <SelectItem value="education">Education Department</SelectItem>
-                            <SelectItem value="municipal">Municipal Corporation</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Input
+                          placeholder="Enter department"
+                          className="border-purple-200 dark:border-purple-900"
+                          value={newAnnouncement.department}
+                          onChange={(e) => setNewAnnouncement({ ...newAnnouncement, department: e.target.value })}
+                        />
                       </div>
 
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Priority</label>
-                        <Select>
+                        <Select 
+                          value={newAnnouncement.priority} 
+                          onValueChange={(value: AnnouncementPriority) => setNewAnnouncement({ ...newAnnouncement, priority: value })}
+                        >
                           <SelectTrigger className="border-purple-200 dark:border-purple-900">
                             <SelectValue placeholder="Select priority" />
                           </SelectTrigger>
@@ -1064,47 +1156,93 @@ export default function AdminDashboardPage() {
                             <SelectItem value="low">Low</SelectItem>
                             <SelectItem value="medium">Medium</SelectItem>
                             <SelectItem value="high">High</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Audience</label>
-                        <Select>
-                          <SelectTrigger className="border-purple-200 dark:border-purple-900">
-                            <SelectValue placeholder="Select audience" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Users</SelectItem>
-                            <SelectItem value="mumbai">Mumbai</SelectItem>
-                            <SelectItem value="delhi">Delhi</SelectItem>
-                            <SelectItem value="bangalore">Bangalore</SelectItem>
-                            <SelectItem value="chennai">Chennai</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Schedule</label>
-                        <Select>
-                          <SelectTrigger className="border-purple-200 dark:border-purple-900">
-                            <SelectValue placeholder="Select schedule" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="now">Publish Now</SelectItem>
-                            <SelectItem value="later">Schedule for Later</SelectItem>
-                            <SelectItem value="draft">Save as Draft</SelectItem>
+                            <SelectItem value="urgent">Urgent</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
                   </CardContent>
                   <CardFooter className="flex justify-end gap-2">
-                    <Button variant="outline">Cancel</Button>
-                    <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                    <Button 
+                      variant="outline"
+                      onClick={() => setNewAnnouncement({ title: "", content: "", department: "", priority: "medium", audience: "all" })}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      onClick={handleCreateAnnouncement}
+                    >
                       Create Announcement
                     </Button>
                   </CardFooter>
+                </Card>
+
+                {/* Announcements List */}
+                <Card className="border-purple-100 dark:border-purple-900">
+                  <CardHeader>
+                    <CardTitle>All Announcements</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {announcements.length === 0 ? (
+                      <div className="p-8 text-center">
+                        <Bell className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-500 dark:text-gray-400">No announcements yet</p>
+                        <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                          Create your first announcement above.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {announcements.map((announcement) => (
+                          <div key={announcement.id} className="p-4 border rounded-lg">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <h3 className="font-medium">{announcement.title}</h3>
+                                <p className="text-sm text-gray-500">{announcement.department}</p>
+                              </div>
+                              <div className="flex gap-2">
+                                <Badge
+                                  className={
+                                    announcement.priority === "high" || announcement.priority === "urgent"
+                                      ? "bg-red-100 text-red-800"
+                                      : announcement.priority === "medium"
+                                        ? "bg-orange-100 text-orange-800"
+                                        : "bg-green-100 text-green-800"
+                                  }
+                                >
+                                  {announcement.priority}
+                                </Badge>
+                                <Badge variant={announcement.status === "published" ? "secondary" : "outline"}>
+                                  {announcement.status}
+                                </Badge>
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{announcement.content}</p>
+                            <div className="flex gap-2">
+                              {announcement.status === "draft" && (
+                                <Button 
+                                  size="sm" 
+                                  className="bg-green-600 hover:bg-green-700"
+                                  onClick={() => handlePublishAnnouncement(announcement.id)}
+                                >
+                                  Publish
+                                </Button>
+                              )}
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="text-red-600"
+                                onClick={() => handleDeleteAnnouncement(announcement.id)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
                 </Card>
               </div>
             )}
@@ -1117,45 +1255,45 @@ export default function AdminDashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <Card className="border-purple-100 dark:border-purple-900">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">User Growth</CardTitle>
-                      <CardDescription>New users this month</CardDescription>
+                      <CardTitle className="text-lg">Total Users</CardTitle>
+                      <CardDescription>Registered users</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold">+15,430</div>
-                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">+12.5% from last month</p>
+                      <div className="text-3xl font-bold">{stats?.totalUsers?.toLocaleString() || 0}</div>
+                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">+{stats?.newUsersToday || 0} new today</p>
                     </CardContent>
                   </Card>
 
                   <Card className="border-purple-100 dark:border-purple-900">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Active Users</CardTitle>
-                      <CardDescription>Daily active users</CardDescription>
+                      <CardTitle className="text-lg">Total Posts</CardTitle>
+                      <CardDescription>Content created</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold">45,280</div>
-                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">+8.3% from last week</p>
+                      <div className="text-3xl font-bold">{stats?.totalPosts?.toLocaleString() || 0}</div>
+                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">+{stats?.newPostsToday || 0} new today</p>
                     </CardContent>
                   </Card>
 
                   <Card className="border-purple-100 dark:border-purple-900">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Scheme Applications</CardTitle>
-                      <CardDescription>Applications this month</CardDescription>
+                      <CardTitle className="text-lg">Verified Officials</CardTitle>
+                      <CardDescription>Government accounts</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold">12,845</div>
-                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">+5.7% from last month</p>
+                      <div className="text-3xl font-bold">{stats?.verifiedOfficials?.toLocaleString() || 0}</div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Verified accounts</p>
                     </CardContent>
                   </Card>
 
                   <Card className="border-purple-100 dark:border-purple-900">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Content Engagement</CardTitle>
-                      <CardDescription>Avg. interactions per post</CardDescription>
+                      <CardTitle className="text-lg">Reports</CardTitle>
+                      <CardDescription>Content moderation</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold">124</div>
-                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">+3.2% from last month</p>
+                      <div className="text-3xl font-bold">{stats?.totalReports || 0}</div>
+                      <p className="text-sm text-orange-600 dark:text-orange-400 mt-1">{stats?.pendingReports || 0} pending review</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -1163,114 +1301,124 @@ export default function AdminDashboardPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card className="border-purple-100 dark:border-purple-900">
                     <CardHeader>
-                      <CardTitle>User Demographics</CardTitle>
-                      <CardDescription>User distribution by region and age</CardDescription>
+                      <CardTitle>User Breakdown</CardTitle>
+                      <CardDescription>Users by role and status</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="h-[300px] flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-md">
-                        <p className="text-gray-500 dark:text-gray-400">User Demographics Chart</p>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-md">
+                          <span className="font-medium">Citizens</span>
+                          <span className="text-lg font-bold">{users.filter(u => u.role === "citizen").length}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-md">
+                          <span className="font-medium">Officials</span>
+                          <span className="text-lg font-bold">{users.filter(u => u.role === "official").length}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-md">
+                          <span className="font-medium">Admins</span>
+                          <span className="text-lg font-bold">{users.filter(u => u.role === "admin").length}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-md">
+                          <span className="font-medium text-red-700 dark:text-red-400">Banned Users</span>
+                          <span className="text-lg font-bold text-red-700 dark:text-red-400">{stats?.bannedUsers || 0}</span>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
 
                   <Card className="border-purple-100 dark:border-purple-900">
                     <CardHeader>
-                      <CardTitle>Scheme Popularity</CardTitle>
-                      <CardDescription>Most popular government schemes</CardDescription>
+                      <CardTitle>Report Statistics</CardTitle>
+                      <CardDescription>Content reports by status</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="h-[300px] flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-md">
-                        <p className="text-gray-500 dark:text-gray-400">Scheme Popularity Chart</p>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md">
+                          <span className="font-medium text-yellow-700 dark:text-yellow-400">Pending</span>
+                          <span className="text-lg font-bold text-yellow-700 dark:text-yellow-400">
+                            {reports.filter(r => r.status === "pending").length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
+                          <span className="font-medium text-green-700 dark:text-green-400">Reviewed</span>
+                          <span className="text-lg font-bold text-green-700 dark:text-green-400">
+                            {reports.filter(r => r.status === "reviewed").length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-md">
+                          <span className="font-medium">Dismissed</span>
+                          <span className="text-lg font-bold">
+                            {reports.filter(r => r.status === "dismissed").length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-md">
+                          <span className="font-medium text-purple-700 dark:text-purple-400">Total Reports</span>
+                          <span className="text-lg font-bold text-purple-700 dark:text-purple-400">{stats?.totalReports || 0}</span>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
 
                   <Card className="border-purple-100 dark:border-purple-900">
                     <CardHeader>
-                      <CardTitle>User Engagement</CardTitle>
-                      <CardDescription>Daily active users over time</CardDescription>
+                      <CardTitle>Announcements</CardTitle>
+                      <CardDescription>Announcement statistics</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="h-[300px] flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-md">
-                        <p className="text-gray-500 dark:text-gray-400">User Engagement Chart</p>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                          <span className="font-medium text-blue-700 dark:text-blue-400">Draft</span>
+                          <span className="text-lg font-bold text-blue-700 dark:text-blue-400">
+                            {announcements.filter(a => a.status === "draft").length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
+                          <span className="font-medium text-green-700 dark:text-green-400">Published</span>
+                          <span className="text-lg font-bold text-green-700 dark:text-green-400">
+                            {announcements.filter(a => a.status === "published").length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-md">
+                          <span className="font-medium">Archived</span>
+                          <span className="text-lg font-bold">
+                            {announcements.filter(a => a.status === "archived").length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-md">
+                          <span className="font-medium text-purple-700 dark:text-purple-400">Total</span>
+                          <span className="text-lg font-bold text-purple-700 dark:text-purple-400">{announcements.length}</span>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
 
                   <Card className="border-purple-100 dark:border-purple-900">
                     <CardHeader>
-                      <CardTitle>Language Distribution</CardTitle>
-                      <CardDescription>User preferred languages</CardDescription>
+                      <CardTitle>Quick Stats</CardTitle>
+                      <CardDescription>Platform overview</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="h-[300px] flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-md">
-                        <p className="text-gray-500 dark:text-gray-400">Language Distribution Chart</p>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-md">
+                          <span className="font-medium">Total Comments</span>
+                          <span className="text-lg font-bold">{stats?.totalComments?.toLocaleString() || 0}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-md">
+                          <span className="font-medium">Unverified Officials</span>
+                          <span className="text-lg font-bold">{users.filter(u => u.role === "official" && !u.isVerified).length}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-md">
+                          <span className="font-medium">Active Announcements</span>
+                          <span className="text-lg font-bold">{announcements.filter(a => a.status === "published").length}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-md">
+                          <span className="font-medium">Pending Reports</span>
+                          <span className="text-lg font-bold">{stats?.pendingReports || 0}</span>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
-
-                <Card className="border-purple-100 dark:border-purple-900">
-                  <CardHeader>
-                    <CardTitle>Generate Reports</CardTitle>
-                    <CardDescription>Create custom analytics reports</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Report Type</label>
-                        <Select>
-                          <SelectTrigger className="border-purple-200 dark:border-purple-900">
-                            <SelectValue placeholder="Select report type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="user">User Growth</SelectItem>
-                            <SelectItem value="engagement">User Engagement</SelectItem>
-                            <SelectItem value="scheme">Scheme Applications</SelectItem>
-                            <SelectItem value="content">Content Performance</SelectItem>
-                            <SelectItem value="language">Language Usage</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Time Period</label>
-                        <Select>
-                          <SelectTrigger className="border-purple-200 dark:border-purple-900">
-                            <SelectValue placeholder="Select time period" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="7days">Last 7 Days</SelectItem>
-                            <SelectItem value="30days">Last 30 Days</SelectItem>
-                            <SelectItem value="90days">Last 90 Days</SelectItem>
-                            <SelectItem value="6months">Last 6 Months</SelectItem>
-                            <SelectItem value="1year">Last Year</SelectItem>
-                            <SelectItem value="custom">Custom Range</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Format</label>
-                        <Select>
-                          <SelectTrigger className="border-purple-200 dark:border-purple-900">
-                            <SelectValue placeholder="Select format" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pdf">PDF</SelectItem>
-                            <SelectItem value="excel">Excel</SelectItem>
-                            <SelectItem value="csv">CSV</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-end gap-2">
-                    <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                      Generate Report
-                    </Button>
-                  </CardFooter>
-                </Card>
               </div>
             )}
 

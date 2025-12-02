@@ -17,6 +17,10 @@ const formatUserResponse = (user: {
   phone?: string | null;
   website?: string | null;
   interests?: string[];
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
   role: string;
   isVerified: boolean;
   createdAt: Date;
@@ -32,6 +36,10 @@ const formatUserResponse = (user: {
   phone: user.phone || null,
   website: user.website || null,
   interests: user.interests || [],
+  address: user.address || null,
+  city: user.city || null,
+  state: user.state || null,
+  pincode: user.pincode || null,
   role: user.role,
   isVerified: user.isVerified,
   createdAt: user.createdAt.toISOString(),
@@ -64,7 +72,7 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
 
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, avatar, coverPhoto, bio, location, occupation, phone, website, interests } = req.body;
+    const { name, avatar, coverPhoto, bio, location, occupation, phone, website, interests, address, city, state, pincode } = req.body;
 
     const user = await prisma.user.update({
       where: { id: req.userId },
@@ -78,6 +86,10 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
         ...(phone !== undefined && { phone }),
         ...(website !== undefined && { website }),
         ...(interests !== undefined && { interests }),
+        ...(address !== undefined && { address }),
+        ...(city !== undefined && { city }),
+        ...(state !== undefined && { state }),
+        ...(pincode !== undefined && { pincode }),
       },
     });
 
@@ -273,5 +285,109 @@ export const getSuggestedConnections = async (req: AuthRequest, res: Response): 
     res.json(suggestedUsers.map((u) => formatUserResponse(u)));
   } catch (error) {
     throw new AppError('Failed to get suggested connections', 500, 'INTERNAL_ERROR');
+  }
+};
+
+// Get user settings
+export const getSettings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    let settings = await prisma.userSettings.findUnique({
+      where: { userId: req.userId },
+    });
+
+    // Create default settings if not exists
+    if (!settings) {
+      settings = await prisma.userSettings.create({
+        data: { userId: req.userId! },
+      });
+    }
+
+    res.json(settings);
+  } catch (error) {
+    throw new AppError('Failed to get settings', 500, 'INTERNAL_ERROR');
+  }
+};
+
+// Update user settings
+export const updateSettings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const {
+      emailNotifications,
+      smsNotifications,
+      pushNotifications,
+      emergencyAlerts,
+      schemeUpdates,
+      communityUpdates,
+      profileVisibility,
+      postVisibility,
+      locationSharing,
+      dataAnalytics,
+      personalizedAds,
+      twoFactorEnabled,
+      loginAlerts,
+      primaryLanguage,
+      secondaryLanguage,
+      autoTranslate,
+      theme,
+      fontSize,
+      highContrast,
+      largeText,
+      screenReader,
+    } = req.body;
+
+    const settings = await prisma.userSettings.upsert({
+      where: { userId: req.userId },
+      update: {
+        ...(emailNotifications !== undefined && { emailNotifications }),
+        ...(smsNotifications !== undefined && { smsNotifications }),
+        ...(pushNotifications !== undefined && { pushNotifications }),
+        ...(emergencyAlerts !== undefined && { emergencyAlerts }),
+        ...(schemeUpdates !== undefined && { schemeUpdates }),
+        ...(communityUpdates !== undefined && { communityUpdates }),
+        ...(profileVisibility !== undefined && { profileVisibility }),
+        ...(postVisibility !== undefined && { postVisibility }),
+        ...(locationSharing !== undefined && { locationSharing }),
+        ...(dataAnalytics !== undefined && { dataAnalytics }),
+        ...(personalizedAds !== undefined && { personalizedAds }),
+        ...(twoFactorEnabled !== undefined && { twoFactorEnabled }),
+        ...(loginAlerts !== undefined && { loginAlerts }),
+        ...(primaryLanguage !== undefined && { primaryLanguage }),
+        ...(secondaryLanguage !== undefined && { secondaryLanguage }),
+        ...(autoTranslate !== undefined && { autoTranslate }),
+        ...(theme !== undefined && { theme }),
+        ...(fontSize !== undefined && { fontSize }),
+        ...(highContrast !== undefined && { highContrast }),
+        ...(largeText !== undefined && { largeText }),
+        ...(screenReader !== undefined && { screenReader }),
+      },
+      create: {
+        userId: req.userId!,
+        ...(emailNotifications !== undefined && { emailNotifications }),
+        ...(smsNotifications !== undefined && { smsNotifications }),
+        ...(pushNotifications !== undefined && { pushNotifications }),
+        ...(emergencyAlerts !== undefined && { emergencyAlerts }),
+        ...(schemeUpdates !== undefined && { schemeUpdates }),
+        ...(communityUpdates !== undefined && { communityUpdates }),
+        ...(profileVisibility !== undefined && { profileVisibility }),
+        ...(postVisibility !== undefined && { postVisibility }),
+        ...(locationSharing !== undefined && { locationSharing }),
+        ...(dataAnalytics !== undefined && { dataAnalytics }),
+        ...(personalizedAds !== undefined && { personalizedAds }),
+        ...(twoFactorEnabled !== undefined && { twoFactorEnabled }),
+        ...(loginAlerts !== undefined && { loginAlerts }),
+        ...(primaryLanguage !== undefined && { primaryLanguage }),
+        ...(secondaryLanguage !== undefined && { secondaryLanguage }),
+        ...(autoTranslate !== undefined && { autoTranslate }),
+        ...(theme !== undefined && { theme }),
+        ...(fontSize !== undefined && { fontSize }),
+        ...(highContrast !== undefined && { highContrast }),
+        ...(largeText !== undefined && { largeText }),
+        ...(screenReader !== undefined && { screenReader }),
+      },
+    });
+
+    res.json(settings);
+  } catch (error) {
+    throw new AppError('Failed to update settings', 500, 'INTERNAL_ERROR');
   }
 };

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,15 +10,46 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
-import { ArrowLeft, Bell, Eye, Globe, Lock, Moon, Sun, User, Volume2 } from "lucide-react"
+import { ArrowLeft, Bell, Eye, Globe, Lock, Moon, Sun, User, Volume2, Loader2 } from "lucide-react"
 import { useAccessibility } from "@/components/accessibility-provider"
 import { useTheme } from "next-themes"
 import { Slider } from "@/components/ui/slider"
+import { useAuth } from "@/components/auth-provider"
+import { getToken } from "@/lib/auth-service"
+import { getUserProfile, updateUserProfile, getUserSettings, updateUserSettings, changePassword, uploadAvatar } from "@/lib/api-service"
+import { toast } from "sonner"
+import type { User as UserType, UserSettings } from "@/lib/types"
 
 export default function SettingsPage() {
   const { highContrast, toggleHighContrast, largeText, toggleLargeText, screenReader, toggleScreenReader } =
     useAccessibility()
   const { theme, setTheme } = useTheme()
+  const { user, isLoggedIn, isLoading: authLoading } = useAuth()
+  
+  // Profile state
+  const [profile, setProfile] = useState<Partial<UserType>>({})
+  const [settings, setSettings] = useState<Partial<UserSettings>>({})
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  
+  // Form state for account
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
+  const [address, setAddress] = useState("")
+  const [city, setCity] = useState("")
+  const [state, setState] = useState("")
+  const [pincode, setPincode] = useState("")
+  
+  // Password state
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  
+  // Notification state
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [smsNotifications, setSmsNotifications] = useState(true)
   const [pushNotifications, setPushNotifications] = useState(true)
@@ -26,6 +57,160 @@ export default function SettingsPage() {
   const [schemeUpdates, setSchemeUpdates] = useState(true)
   const [communityUpdates, setCommunityUpdates] = useState(true)
   const [fontSizeValue, setFontSizeValue] = useState([100])
+  
+  // Fetch profile and settings
+  const fetchData = useCallback(async () => {
+    if (!isLoggedIn) {
+      setIsLoading(false)
+      return
+    }
+    const token = getToken()
+    if (!token) {
+      setIsLoading(false)
+      return
+    }
+    
+    try {
+      const [profileData, settingsData] = await Promise.all([
+        getUserProfile(token),
+        getUserSettings(token),
+      ])
+      
+      setProfile(profileData)
+      setSettings(settingsData)
+      
+      // Parse name into first/last
+      const nameParts = (profileData.name || "").split(" ")
+      setFirstName(nameParts[0] || "")
+      setLastName(nameParts.slice(1).join(" ") || "")
+      setEmail(profileData.email || "")
+      setPhone(profileData.phone || "")
+      setAddress(profileData.address || "")
+      setCity(profileData.city || "")
+      setState(profileData.state || "")
+      setPincode(profileData.pincode || "")
+      
+      // Set notification preferences
+      setEmailNotifications(settingsData.emailNotifications ?? true)
+      setSmsNotifications(settingsData.smsNotifications ?? true)
+      setPushNotifications(settingsData.pushNotifications ?? true)
+      setEmergencyAlerts(settingsData.emergencyAlerts ?? true)
+      setSchemeUpdates(settingsData.schemeUpdates ?? true)
+      setCommunityUpdates(settingsData.communityUpdates ?? true)
+      setFontSizeValue([settingsData.fontSize ?? 100])
+    } catch (error) {
+      console.error("Failed to fetch settings:", error)
+      toast.error("Failed to load settings")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [isLoggedIn])
+  
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+  
+  const handleSaveAccount = async () => {
+    const token = getToken()
+    if (!token) return
+    
+    setIsSaving(true)
+    try {
+      const fullName = `${firstName} ${lastName}`.trim()
+      await updateUserProfile(token, {
+        name: fullName,
+        phone,
+        address,
+        city,
+        state,
+        pincode,
+      })
+      toast.success("Account information saved!")
+    } catch (error) {
+      console.error("Failed to save account:", error)
+      toast.error("Failed to save account information")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+  
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match")
+      return
+    }
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters")
+      return
+    }
+    
+    const token = getToken()
+    if (!token) return
+    
+    setIsChangingPassword(true)
+    try {
+      await changePassword(token, currentPassword, newPassword)
+      toast.success("Password changed successfully!")
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+    } catch (error) {
+      console.error("Failed to change password:", error)
+      toast.error("Failed to change password. Check your current password.")
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+  
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const token = getToken()
+    if (!token) return
+    
+    setIsUploadingAvatar(true)
+    try {
+      const result = await uploadAvatar(file, token)
+      setProfile(prev => ({ ...prev, avatar: result.url }))
+      toast.success("Profile picture updated!")
+    } catch (error) {
+      console.error("Failed to upload avatar:", error)
+      toast.error("Failed to upload profile picture")
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
+  
+  const handleSaveNotifications = async () => {
+    const token = getToken()
+    if (!token) return
+    
+    setIsSaving(true)
+    try {
+      await updateUserSettings(token, {
+        emailNotifications,
+        smsNotifications,
+        pushNotifications,
+        emergencyAlerts,
+        schemeUpdates,
+        communityUpdates,
+      })
+      toast.success("Notification preferences saved!")
+    } catch (error) {
+      console.error("Failed to save notifications:", error)
+      toast.error("Failed to save notification preferences")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+  
+  if (authLoading || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-50 to-white dark:from-gray-900 dark:to-gray-950">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white dark:from-gray-900 dark:to-gray-950">
@@ -45,13 +230,13 @@ export default function SettingsPage() {
               <CardContent className="p-4">
                 <div className="flex flex-col items-center">
                   <Avatar className="h-20 w-20 mb-4">
-                    <AvatarImage src="/placeholder.svg?height=80&width=80" alt="User" />
+                    <AvatarImage src={profile.avatar || "/placeholder.svg?height=80&width=80"} alt={profile.name || "User"} />
                     <AvatarFallback className="bg-gradient-to-r from-green-500 to-teal-500 text-white text-xl">
-                      RK
+                      {(profile.name || "U")[0]}
                     </AvatarFallback>
                   </Avatar>
-                  <h2 className="font-bold text-lg">Ravi Kumar</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">@ravikumar</p>
+                  <h2 className="font-bold text-lg">{profile.name || "User"}</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">@{(profile.name || "user").toLowerCase().replace(/\s+/g, "")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -65,6 +250,7 @@ export default function SettingsPage() {
                   <User className="h-4 w-4 mr-2" />
                   Account
                 </TabsTrigger>
+                {/* Hidden tabs - uncomment when ready
                 <TabsTrigger
                   value="notifications"
                   className="justify-start py-3 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-900 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-400"
@@ -100,6 +286,7 @@ export default function SettingsPage() {
                   <Lock className="h-4 w-4 mr-2" />
                   Privacy & Security
                 </TabsTrigger>
+                */}
               </TabsList>
             </Tabs>
           </div>
@@ -119,7 +306,8 @@ export default function SettingsPage() {
                         <Label htmlFor="first-name">First Name</Label>
                         <Input
                           id="first-name"
-                          defaultValue="Ravi"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
                           className="border-purple-200 dark:border-purple-900"
                         />
                       </div>
@@ -127,7 +315,8 @@ export default function SettingsPage() {
                         <Label htmlFor="last-name">Last Name</Label>
                         <Input
                           id="last-name"
-                          defaultValue="Kumar"
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
                           className="border-purple-200 dark:border-purple-900"
                         />
                       </div>
@@ -138,9 +327,11 @@ export default function SettingsPage() {
                       <Input
                         id="email"
                         type="email"
-                        defaultValue="ravi.kumar@example.com"
-                        className="border-purple-200 dark:border-purple-900"
+                        value={email}
+                        disabled
+                        className="border-purple-200 dark:border-purple-900 bg-gray-50 dark:bg-gray-800"
                       />
+                      <p className="text-xs text-gray-500">Email cannot be changed</p>
                     </div>
 
                     <div className="space-y-2">
@@ -148,7 +339,8 @@ export default function SettingsPage() {
                       <Input
                         id="phone"
                         type="tel"
-                        defaultValue="+91 9876543210"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
                         className="border-purple-200 dark:border-purple-900"
                       />
                     </div>
@@ -157,7 +349,8 @@ export default function SettingsPage() {
                       <Label htmlFor="address">Address</Label>
                       <Input
                         id="address"
-                        defaultValue="123 Main Street, Mumbai"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
                         className="border-purple-200 dark:border-purple-900"
                       />
                     </div>
@@ -165,32 +358,92 @@ export default function SettingsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="city">City</Label>
-                        <Input id="city" defaultValue="Mumbai" className="border-purple-200 dark:border-purple-900" />
+                        <Input 
+                          id="city" 
+                          value={city}
+                          onChange={(e) => setCity(e.target.value)}
+                          className="border-purple-200 dark:border-purple-900" 
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="state">State</Label>
-                        <Select defaultValue="maharashtra">
+                        <Select value={state} onValueChange={setState}>
                           <SelectTrigger className="border-purple-200 dark:border-purple-900">
                             <SelectValue placeholder="Select state" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="maharashtra">Maharashtra</SelectItem>
-                            <SelectItem value="delhi">Delhi</SelectItem>
-                            <SelectItem value="karnataka">Karnataka</SelectItem>
-                            <SelectItem value="tamil-nadu">Tamil Nadu</SelectItem>
-                            <SelectItem value="uttar-pradesh">Uttar Pradesh</SelectItem>
+                            <SelectItem value="AL">Alabama</SelectItem>
+                            <SelectItem value="AK">Alaska</SelectItem>
+                            <SelectItem value="AZ">Arizona</SelectItem>
+                            <SelectItem value="AR">Arkansas</SelectItem>
+                            <SelectItem value="CA">California</SelectItem>
+                            <SelectItem value="CO">Colorado</SelectItem>
+                            <SelectItem value="CT">Connecticut</SelectItem>
+                            <SelectItem value="DE">Delaware</SelectItem>
+                            <SelectItem value="FL">Florida</SelectItem>
+                            <SelectItem value="GA">Georgia</SelectItem>
+                            <SelectItem value="HI">Hawaii</SelectItem>
+                            <SelectItem value="ID">Idaho</SelectItem>
+                            <SelectItem value="IL">Illinois</SelectItem>
+                            <SelectItem value="IN">Indiana</SelectItem>
+                            <SelectItem value="IA">Iowa</SelectItem>
+                            <SelectItem value="KS">Kansas</SelectItem>
+                            <SelectItem value="KY">Kentucky</SelectItem>
+                            <SelectItem value="LA">Louisiana</SelectItem>
+                            <SelectItem value="ME">Maine</SelectItem>
+                            <SelectItem value="MD">Maryland</SelectItem>
+                            <SelectItem value="MA">Massachusetts</SelectItem>
+                            <SelectItem value="MI">Michigan</SelectItem>
+                            <SelectItem value="MN">Minnesota</SelectItem>
+                            <SelectItem value="MS">Mississippi</SelectItem>
+                            <SelectItem value="MO">Missouri</SelectItem>
+                            <SelectItem value="MT">Montana</SelectItem>
+                            <SelectItem value="NE">Nebraska</SelectItem>
+                            <SelectItem value="NV">Nevada</SelectItem>
+                            <SelectItem value="NH">New Hampshire</SelectItem>
+                            <SelectItem value="NJ">New Jersey</SelectItem>
+                            <SelectItem value="NM">New Mexico</SelectItem>
+                            <SelectItem value="NY">New York</SelectItem>
+                            <SelectItem value="NC">North Carolina</SelectItem>
+                            <SelectItem value="ND">North Dakota</SelectItem>
+                            <SelectItem value="OH">Ohio</SelectItem>
+                            <SelectItem value="OK">Oklahoma</SelectItem>
+                            <SelectItem value="OR">Oregon</SelectItem>
+                            <SelectItem value="PA">Pennsylvania</SelectItem>
+                            <SelectItem value="RI">Rhode Island</SelectItem>
+                            <SelectItem value="SC">South Carolina</SelectItem>
+                            <SelectItem value="SD">South Dakota</SelectItem>
+                            <SelectItem value="TN">Tennessee</SelectItem>
+                            <SelectItem value="TX">Texas</SelectItem>
+                            <SelectItem value="UT">Utah</SelectItem>
+                            <SelectItem value="VT">Vermont</SelectItem>
+                            <SelectItem value="VA">Virginia</SelectItem>
+                            <SelectItem value="WA">Washington</SelectItem>
+                            <SelectItem value="WV">West Virginia</SelectItem>
+                            <SelectItem value="WI">Wisconsin</SelectItem>
+                            <SelectItem value="WY">Wyoming</SelectItem>
+                            <SelectItem value="DC">Washington D.C.</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="pincode">PIN Code</Label>
-                      <Input id="pincode" defaultValue="400001" className="border-purple-200 dark:border-purple-900" />
+                      <Label htmlFor="pincode">ZIP Code</Label>
+                      <Input 
+                        id="pincode" 
+                        value={pincode}
+                        onChange={(e) => setPincode(e.target.value)}
+                        className="border-purple-200 dark:border-purple-900" 
+                      />
                     </div>
 
-                    <Button className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                      Save Changes
+                    <Button 
+                      onClick={handleSaveAccount}
+                      disabled={isSaving}
+                      className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    >
+                      {isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
                     </Button>
                   </CardContent>
                 </Card>
@@ -203,25 +456,32 @@ export default function SettingsPage() {
                   <CardContent className="space-y-4">
                     <div className="flex flex-col md:flex-row items-center gap-4">
                       <Avatar className="h-24 w-24">
-                        <AvatarImage src="/placeholder.svg?height=96&width=96" alt="User" />
+                        <AvatarImage src={profile.avatar || "/placeholder.svg?height=96&width=96"} alt={profile.name || "User"} />
                         <AvatarFallback className="bg-gradient-to-r from-green-500 to-teal-500 text-white text-2xl">
-                          RK
+                          {(profile.name || "U")[0]}
                         </AvatarFallback>
                       </Avatar>
 
                       <div className="flex flex-col gap-2">
-                        <Button
-                          variant="outline"
-                          className="border-purple-200 dark:border-purple-900 text-purple-700 dark:text-purple-400"
-                        >
-                          Upload New Picture
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                        >
-                          Remove Picture
-                        </Button>
+                        <label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleAvatarUpload}
+                            disabled={isUploadingAvatar}
+                          />
+                          <Button
+                            variant="outline"
+                            className="border-purple-200 dark:border-purple-900 text-purple-700 dark:text-purple-400"
+                            disabled={isUploadingAvatar}
+                            asChild
+                          >
+                            <span>
+                              {isUploadingAvatar ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Uploading...</> : "Upload New Picture"}
+                            </span>
+                          </Button>
+                        </label>
                       </div>
                     </div>
                   </CardContent>
@@ -238,13 +498,21 @@ export default function SettingsPage() {
                       <Input
                         id="current-password"
                         type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
                         className="border-purple-200 dark:border-purple-900"
                       />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="new-password">New Password</Label>
-                      <Input id="new-password" type="password" className="border-purple-200 dark:border-purple-900" />
+                      <Input 
+                        id="new-password" 
+                        type="password" 
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="border-purple-200 dark:border-purple-900" 
+                      />
                     </div>
 
                     <div className="space-y-2">
@@ -252,12 +520,18 @@ export default function SettingsPage() {
                       <Input
                         id="confirm-password"
                         type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
                         className="border-purple-200 dark:border-purple-900"
                       />
                     </div>
 
-                    <Button className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                      Update Password
+                    <Button 
+                      onClick={handleChangePassword}
+                      disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
+                      className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    >
+                      {isChangingPassword ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</> : "Update Password"}
                     </Button>
                   </CardContent>
                 </Card>
@@ -346,8 +620,12 @@ export default function SettingsPage() {
                       </div>
                     </div>
 
-                    <Button className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                      Save Preferences
+                    <Button 
+                      onClick={handleSaveNotifications}
+                      disabled={isSaving}
+                      className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    >
+                      {isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Preferences"}
                     </Button>
                   </CardContent>
                 </Card>

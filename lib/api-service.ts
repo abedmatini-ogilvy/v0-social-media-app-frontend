@@ -5,6 +5,7 @@
 
 import type {
   User,
+  UserSettings,
   Post,
   Comment,
   Scheme,
@@ -47,6 +48,7 @@ export const API_ENDPOINTS = {
     CONNECT: (userId: string) => `${API_BASE_URL}/users/connect/${userId}`,
     DISCONNECT: (userId: string) => `${API_BASE_URL}/users/disconnect/${userId}`,
     SUGGESTED_CONNECTIONS: `${API_BASE_URL}/users/suggested-connections`,
+    SETTINGS: `${API_BASE_URL}/users/settings`,
   },
 
   // Upload endpoints
@@ -239,6 +241,18 @@ export async function connectWithUser(userId: string, token: string): Promise<vo
 
 export async function disconnectFromUser(userId: string, token: string): Promise<void> {
   return apiRequest<void>(API_ENDPOINTS.USER.DISCONNECT(userId), "DELETE", undefined, token)
+}
+
+export async function getUserSettings(token: string): Promise<UserSettings> {
+  return apiRequest<UserSettings>(API_ENDPOINTS.USER.SETTINGS, "GET", undefined, token)
+}
+
+export async function updateUserSettings(token: string, data: Partial<UserSettings>): Promise<UserSettings> {
+  return apiRequest<UserSettings>(API_ENDPOINTS.USER.SETTINGS, "PUT", data, token)
+}
+
+export async function changePassword(token: string, currentPassword: string, newPassword: string): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>(API_ENDPOINTS.USER.CHANGE_PASSWORD, "PUT", { currentPassword, newPassword }, token)
 }
 
 // ==================== POSTS API ====================

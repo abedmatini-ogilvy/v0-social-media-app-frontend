@@ -1,8 +1,12 @@
 import { type Request, type Response, type NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { PrismaClient, UserRole } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export interface AuthRequest extends Request {
   userId?: string;
+  userRole?: UserRole;
 }
 
 export interface JwtPayload {
@@ -106,6 +110,123 @@ export const optionalAuth = (
     next();
   } catch {
     // Ignore token errors for optional auth
+    next();
+  }
+};
+
+// Admin authentication middleware - requires user to be an admin
+export const requireAdmin = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    // First, ensure user is authenticated
+    if (!req.userId) {
+      res.status(401).json({
+        error: {
+          message: 'Authentication required',
+          code: 'UNAUTHORIZED',
+        },
+      });
+      return;
+    }
+
+    // Check if user exists and is an admin
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { role: true, isBanned: true },
+    });
+
+    if (!user) {
+      res.status(401).json({
+        error: {
+          message: 'User not found',
+          code: 'UNAUTHORIZED',
+        },
+      });
+      return;
+    }
+
+    if (user.isBanned) {
+      res.status(403).json({
+        error: {
+          message: 'Your account has been banned',
+          code: 'FORBIDDEN',
+        },
+      });
+      return;
+    }
+
+    if (user.role !== 'admin') {
+      res.status(403).json({
+        error: {
+          message: 'Admin access required',
+          code: 'FORBIDDEN',
+        },
+      });
+      return;
+    }
+
+    req.userRole = user.role;
+    next();
+  } catch (error) {
+    res.status(500).json({
+      error: {
+        message: 'Authorization check failed',
+        code: 'INTERNAL_ERROR',
+      },
+    });
+  }
+};
+
+// Check if user is banned middleware
+export const checkBanned = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.userId) {
+      next();
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { isBanned: true, banReason: true, suspendedUntil: true },
+    });
+
+    if (!user) {
+      next();
+      return;
+    }
+
+    // Check if user is banned
+    if (user.isBanned) {
+      res.status(403).json({
+        error: {
+          message: user.banReason || 'Your account has been banned',
+          code: 'ACCOUNT_BANNED',
+        },
+      });
+      return;
+    }
+
+    // Check if user is suspended
+    if (user.suspendedUntil && new Date(user.suspendedUntil) > new Date()) {
+      res.status(403).json({
+        error: {
+          message: `Your account is suspended until ${user.suspendedUntil.toISOString()}`,
+          code: 'ACCOUNT_SUSPENDED',
+        },
+      });
+      return;
+    }
+
+    next();
+  } catch (error) {
+    // Don't block the request if check fails
     next();
   }
 };
