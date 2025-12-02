@@ -78,6 +78,92 @@ Testing the CivicConnect social media application with Playwright E2E tests.
 | TC-INTERACT-017 | API - Create post with image URL | ✅ Pass |
 | TC-INTERACT-018 | Display image on posts | ✅ Pass |
 
+### 4. `11-navigation-routing.spec.ts` - Navigation & Routing Tests
+**Status: 16/16 Passing (100%)** ✅
+
+| Test ID | Description | Status |
+|---------|-------------|--------|
+| TC-NAV-001 | Redirect to login for protected routes | ✅ Pass |
+| TC-NAV-002 | Allow access to public pages | ✅ Pass |
+| TC-NAV-003 | Navigate to login page | ✅ Pass |
+| TC-NAV-004 | Navigate to signup page | ✅ Pass |
+| TC-NAV-005 | Navigate between login and signup | ✅ Pass |
+| TC-NAV-006 | Navigate to profile page | ✅ Pass |
+| TC-NAV-007 | Navigate to notifications page | ✅ Pass |
+| TC-NAV-008 | Navigate to messages page | ✅ Pass |
+| TC-NAV-009 | Navigate to schemes page | ✅ Pass |
+| TC-NAV-010 | Navigate to jobs page | ✅ Pass |
+| TC-NAV-011 | Navigate to settings page | ✅ Pass |
+| TC-NAV-012 | Navigate back to home | ✅ Pass |
+| TC-NAV-013 | Browser back/forward navigation | ✅ Pass |
+| TC-NAV-014 | Deep link to scheme detail | ✅ Pass |
+| TC-NAV-015 | Handle 404 for non-existent routes | ✅ Pass |
+| TC-NAV-016 | Logout and redirect | ✅ Pass |
+
+### 5. `12-pagination.spec.ts` - Pagination & Infinite Scroll Tests
+**Status: 12/12 Passing (100%)** ✅
+
+| Test ID | Description | Status |
+|---------|-------------|--------|
+| TC-PAGE-001 | Load initial posts on page load | ✅ Pass |
+| TC-PAGE-002 | Show loading skeleton while fetching | ✅ Pass |
+| TC-PAGE-003 | Scroll to load more posts | ✅ Pass |
+| TC-PAGE-004 | Show Load More button if available | ✅ Pass |
+| TC-PAGE-005 | Display end of feed message | ✅ Pass |
+| TC-PAGE-006 | Reset pagination when switching tabs | ✅ Pass |
+| TC-PAGE-007 | Maintain scroll position within tab | ✅ Pass |
+| TC-PAGE-008 | API - Support pagination parameters | ✅ Pass |
+| TC-PAGE-009 | API - Return different results for pages | ✅ Pass |
+| TC-PAGE-010 | API - Handle empty page gracefully | ✅ Pass |
+| TC-PAGE-011 | Refresh feed on pull down | ✅ Pass |
+| TC-PAGE-012 | Show new posts after refresh | ✅ Pass |
+
+### 6. `13-error-states.spec.ts` - Error States Tests
+**Status: 14/14 Passing (100%)** ✅
+
+| Test ID | Description | Status |
+|---------|-------------|--------|
+| TC-ERR-001 | Handle API timeout gracefully | ✅ Pass |
+| TC-ERR-002 | Handle network offline | ✅ Pass |
+| TC-ERR-003 | Handle API 500 error | ✅ Pass |
+| TC-ERR-004 | Handle API 404 error | ✅ Pass |
+| TC-ERR-005 | Show error for invalid login | ✅ Pass |
+| TC-ERR-006 | Handle expired token | ✅ Pass |
+| TC-ERR-007 | Handle 403 forbidden error | ✅ Pass |
+| TC-ERR-008 | Prevent empty post submission | ✅ Pass |
+| TC-ERR-009 | Prevent whitespace-only post | ✅ Pass |
+| TC-ERR-010 | Show validation for invalid image URL | ✅ Pass |
+| TC-ERR-011 | Handle rate limit (429) error | ✅ Pass |
+| TC-ERR-012 | Show empty state when no posts | ✅ Pass |
+| TC-ERR-013 | Show empty state for no search results | ✅ Pass |
+| TC-ERR-014 | Recover from error on retry | ✅ Pass |
+
+### 7. `14-post-creation-extended.spec.ts` - Extended Post Creation Tests
+**Status: 20/20 Passing (100%)** ✅
+
+| Test ID | Description | Status |
+|---------|-------------|--------|
+| TC-POST-001 | Create post with long text content | ✅ Pass |
+| TC-POST-002 | Create post with special characters | ✅ Pass |
+| TC-POST-003 | Create post with unicode/emojis | ✅ Pass |
+| TC-POST-004 | Create post with line breaks | ✅ Pass |
+| TC-POST-005 | Create post with hashtags | ✅ Pass |
+| TC-POST-006 | Create post with mentions | ✅ Pass |
+| TC-POST-007 | Create post with URLs | ✅ Pass |
+| TC-POST-008 | Clear post content when cancelled | ✅ Pass |
+| TC-POST-009 | Preserve draft when navigating | ✅ Pass |
+| TC-POST-010 | Warn before losing unsaved post | ✅ Pass |
+| TC-POST-011 | Create post with valid image URL | ✅ Pass |
+| TC-POST-012 | Handle invalid image URL | ✅ Pass |
+| TC-POST-013 | Toggle image input visibility | ✅ Pass |
+| TC-POST-014 | Create post with location | ✅ Pass |
+| TC-POST-015 | Toggle location input visibility | ✅ Pass |
+| TC-POST-016 | API - Create post with all fields | ✅ Pass |
+| TC-POST-017 | API - Reject post without content | ✅ Pass |
+| TC-POST-018 | API - Reject unauthenticated post | ✅ Pass |
+| TC-POST-019 | API - Handle very long content | ✅ Pass |
+| TC-POST-020 | API - Sanitize HTML/script content | ✅ Pass |
+
 ## Known Issues
 
 ### 1. Rate Limiting (429 Errors)
