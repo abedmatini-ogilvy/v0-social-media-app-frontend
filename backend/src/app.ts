@@ -1,6 +1,7 @@
 import express, { type Express, type Request, type Response } from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import path from 'path';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -13,6 +14,7 @@ import notificationRoutes from './routes/notifications.js';
 import messageRoutes from './routes/messages.js';
 import searchRoutes from './routes/search.js';
 import emergencyAlertRoutes from './routes/emergencyAlerts.js';
+import uploadRoutes from './routes/upload.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -28,6 +30,9 @@ app.use(cors({
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Apply general rate limiting to all API routes
 app.use('/api', apiLimiter);
@@ -48,6 +53,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/emergency-alerts', emergencyAlertRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

@@ -24,13 +24,17 @@ import {
   UserX,
   Loader2,
   Trash2,
+  Upload,
+  Link,
+  X,
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/components/auth-provider"
-import { getPostsFeed, createPost, likePost, unlikePost, getPostComments, addComment, connectWithUser, disconnectFromUser, deletePost } from "@/lib/api-service"
+import { getPostsFeed, createPost, likePost, unlikePost, getPostComments, addComment, connectWithUser, disconnectFromUser, deletePost, uploadImage } from "@/lib/api-service"
 import { getToken } from "@/lib/auth-service"
 import type { Post, Comment } from "@/lib/types"
 import { toast } from "sonner"
@@ -166,7 +170,11 @@ export default function SocialFeed() {
   const [postContent, setPostContent] = useState("")
   const [postImage, setPostImage] = useState("")
   const [postLocation, setPostLocation] = useState("")
-  const [showImageInput, setShowImageInput] = useState(false)
+  const [showImageModal, setShowImageModal] = useState(false)
+  const [imageModalTab, setImageModalTab] = useState<"upload" | "url">("upload")
+  const [imageUrlInput, setImageUrlInput] = useState("")
+  const [isUploading, setIsUploading] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
   const [showLocationInput, setShowLocationInput] = useState(false)
   const [isPosting, setIsPosting] = useState(false)
   const { user, isLoggedIn } = useAuth()
@@ -219,7 +227,7 @@ export default function SocialFeed() {
         setPostContent("")
         setPostImage("")
         setPostLocation("")
-        setShowImageInput(false)
+        setShowImageModal(false)
         setShowLocationInput(false)
         toast.success("Post created successfully!")
       }
@@ -237,6 +245,82 @@ export default function SocialFeed() {
 
   const handleDeletePost = (postId: string) => {
     setPosts(posts.filter(post => post.id !== postId))
+  }
+
+  // Image upload handlers
+  const handleFileUpload = async (file: File) => {
+    if (!file) return
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.')
+      return
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large. Maximum size is 10MB.')
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      const token = getToken()
+      if (!token) {
+        toast.error('Please login to upload images')
+        return
+      }
+
+      const response = await uploadImage(file, token)
+      setPostImage(response.url)
+      setShowImageModal(false)
+      toast.success('Image uploaded successfully!')
+    } catch (err) {
+      console.error('Failed to upload image:', err)
+      toast.error(err instanceof Error ? err.message : 'Failed to upload image')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true)
+    } else if (e.type === 'dragleave') {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e.dataTransfer.files[0])
+    }
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFileUpload(e.target.files[0])
+    }
+  }
+
+  const handleUrlSubmit = () => {
+    if (imageUrlInput.trim()) {
+      setPostImage(imageUrlInput.trim())
+      setImageUrlInput('')
+      setShowImageModal(false)
+      toast.success('Image URL added!')
+    }
+  }
+
+  const removeImage = () => {
+    setPostImage('')
   }
 
   // Loading skeleton
@@ -286,6 +370,110 @@ export default function SocialFeed() {
 
   return (
     <div className="space-y-4">
+      {/* Image Upload Modal */}
+      <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Photo</DialogTitle>
+          </DialogHeader>
+          
+          {/* Tabs */}
+          <div className="flex border-b border-gray-200 dark:border-gray-700">
+            <button
+              className={`flex-1 py-2 px-4 text-sm font-medium ${
+                imageModalTab === 'upload'
+                  ? 'border-b-2 border-purple-500 text-purple-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => setImageModalTab('upload')}
+            >
+              <Upload className="h-4 w-4 inline mr-2" />
+              Upload
+            </button>
+            <button
+              className={`flex-1 py-2 px-4 text-sm font-medium ${
+                imageModalTab === 'url'
+                  ? 'border-b-2 border-purple-500 text-purple-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => setImageModalTab('url')}
+            >
+              <Link className="h-4 w-4 inline mr-2" />
+              URL
+            </button>
+          </div>
+
+          {/* Upload Tab */}
+          {imageModalTab === 'upload' && (
+            <div className="space-y-4">
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  dragActive
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-purple-400'
+                }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                {isUploading ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                    <p className="text-sm text-gray-500">Uploading...</p>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="h-10 w-10 mx-auto text-gray-400 mb-3" />
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                      Drag and drop an image here, or
+                    </p>
+                    <label className="cursor-pointer">
+                      <span className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm">
+                        Browse Files
+                      </span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                        onChange={handleFileSelect}
+                      />
+                    </label>
+                    <p className="text-xs text-gray-400 mt-3">
+                      JPEG, PNG, GIF, WebP • Max 10MB
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* URL Tab */}
+          {imageModalTab === 'url' && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Image URL
+                </label>
+                <Input
+                  placeholder="https://example.com/image.jpg"
+                  value={imageUrlInput}
+                  onChange={(e) => setImageUrlInput(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <Button
+                onClick={handleUrlSubmit}
+                disabled={!imageUrlInput.trim()}
+                className="w-full bg-purple-600 hover:bg-purple-700"
+              >
+                Add Image
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Error banner */}
       {error && (
         <div className="p-3 text-sm text-amber-600 bg-amber-50 rounded-md border border-amber-200">
@@ -311,26 +499,25 @@ export default function SocialFeed() {
                 onChange={(e) => setPostContent(e.target.value)}
                 disabled={!isLoggedIn || isPosting}
               />
-                {/* Image URL input */}
-              {showImageInput && (
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    placeholder="Enter image URL..."
-                    value={postImage}
-                    onChange={(e) => setPostImage(e.target.value)}
-                    className="flex-1 border-purple-200 dark:border-gray-700"
-                    disabled={!isLoggedIn || isPosting}
+              
+              {/* Image preview */}
+              {postImage && (
+                <div className="relative mt-2 rounded-lg overflow-hidden border border-purple-200 dark:border-gray-700">
+                  <img 
+                    src={postImage} 
+                    alt="Post preview" 
+                    className="w-full h-40 object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/placeholder.svg'
+                    }}
                   />
                   <Button
                     variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setShowImageInput(false)
-                      setPostImage("")
-                    }}
-                    className="text-gray-500"
+                    size="icon"
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 h-8 w-8 bg-black/50 hover:bg-black/70 text-white rounded-full"
                   >
-                    ✕
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
               )}
@@ -385,15 +572,15 @@ export default function SocialFeed() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className={`text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 ${showImageInput ? 'bg-purple-100 dark:bg-purple-900/30' : ''}`}
+                          className={`text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 ${postImage ? 'bg-purple-100 dark:bg-purple-900/30' : ''}`}
                           disabled={!isLoggedIn}
-                          onClick={() => setShowImageInput(!showImageInput)}
+                          onClick={() => setShowImageModal(true)}
                         >
                           <ImageIcon className="h-4 w-4 mr-1" />
                           <span className="text-xs">Photo</span>
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Add a photo URL to your post</TooltipContent>
+                      <TooltipContent>Add a photo to your post</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
 

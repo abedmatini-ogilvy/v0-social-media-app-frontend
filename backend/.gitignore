@@ -29,3 +29,6 @@ prisma/migrations/
 
 # Test coverage
 coverage/
+
+# Uploaded files
+uploads/

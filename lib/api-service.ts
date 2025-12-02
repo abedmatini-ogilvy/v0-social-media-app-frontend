@@ -49,6 +49,11 @@ export const API_ENDPOINTS = {
     SUGGESTED_CONNECTIONS: `${API_BASE_URL}/users/suggested-connections`,
   },
 
+  // Upload endpoints
+  UPLOAD: {
+    IMAGE: `${API_BASE_URL}/upload/image`,
+  },
+
   // Posts endpoints
   POSTS: {
     FEED: `${API_BASE_URL}/posts/feed`,
@@ -288,6 +293,36 @@ export async function getPostComments(postId: string, token: string): Promise<Co
 
 export async function addComment(postId: string, content: string, token: string): Promise<Comment> {
   return apiRequest<Comment>(API_ENDPOINTS.POSTS.ADD_COMMENT(postId), "POST", { content }, token)
+}
+
+// ==================== UPLOAD API ====================
+
+export interface UploadResponse {
+  message: string;
+  url: string;
+  filename: string;
+  size: number;
+  mimetype: string;
+}
+
+export async function uploadImage(file: File, token: string): Promise<UploadResponse> {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await fetch(API_ENDPOINTS.UPLOAD.IMAGE, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error?.message || 'Failed to upload image');
+  }
+
+  return response.json();
 }
 
 // ==================== SCHEMES API ====================
