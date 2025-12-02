@@ -119,6 +119,11 @@ export const API_ENDPOINTS = {
     LIST: `${API_BASE_URL}/emergency-alerts`,
     GET: (alertId: string) => `${API_BASE_URL}/emergency-alerts/${alertId}`,
   },
+
+  // Public announcements endpoint
+  ANNOUNCEMENTS: {
+    LIST: `${API_BASE_URL}/announcements`,
+  },
 }
 
 // HTTP request headers
@@ -494,6 +499,35 @@ export async function getEmergencyAlerts(): Promise<EmergencyAlert[]> {
 
 export async function getEmergencyAlert(alertId: string): Promise<EmergencyAlert> {
   return apiRequest<EmergencyAlert>(API_ENDPOINTS.EMERGENCY_ALERTS.GET(alertId), "GET")
+}
+
+// ==================== PUBLIC ANNOUNCEMENTS API ====================
+
+export interface PublicAnnouncement {
+  id: string
+  title: string
+  content: string
+  department?: string | null
+  priority: "low" | "medium" | "high" | "urgent"
+  audience?: string | null
+  publishedAt?: string | null
+  creator?: {
+    id: string
+    name: string
+    avatar?: string | null
+  }
+}
+
+export async function getPublicAnnouncements(audience?: string): Promise<PublicAnnouncement[]> {
+  const url = audience 
+    ? `${API_ENDPOINTS.ANNOUNCEMENTS.LIST}?audience=${encodeURIComponent(audience)}`
+    : API_ENDPOINTS.ANNOUNCEMENTS.LIST
+  return apiRequest<PublicAnnouncement[]>(url, "GET")
+}
+
+export async function getUrgentAnnouncements(): Promise<PublicAnnouncement[]> {
+  const announcements = await getPublicAnnouncements()
+  return announcements.filter(a => a.priority === "urgent")
 }
 
 // Re-export types

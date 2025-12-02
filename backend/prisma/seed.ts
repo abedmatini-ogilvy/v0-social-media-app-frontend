@@ -288,30 +288,8 @@ async function main() {
     }),
   ]);
 
-  // Create emergency alerts
-  console.log('🚨 Creating emergency alerts...');
-  await Promise.all([
-    prisma.emergencyAlert.create({
-      data: {
-        title: 'Heavy Rainfall Alert',
-        message:
-          'Heavy rainfall expected in Mumbai region for next 48 hours. Please stay indoors and avoid unnecessary travel.',
-        authority: 'Mumbai Meteorological Department',
-        isActive: true,
-        expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
-      },
-    }),
-    prisma.emergencyAlert.create({
-      data: {
-        title: 'COVID-19 Vaccination Drive',
-        message:
-          'Free vaccination camp at PHC from 10 AM to 4 PM. Bring Aadhaar card. All age groups eligible.',
-        authority: 'Health Department',
-        isActive: true,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-    }),
-  ]);
+  // Note: Emergency alerts are now managed through the Announcements system in the admin dashboard.
+  // Create an urgent announcement with priority "urgent" to display as an emergency alert on the home page.
 
   // Create posts
   console.log('📝 Creating posts...');

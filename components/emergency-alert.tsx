@@ -5,14 +5,14 @@ import { AlertTriangle, X, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { getEmergencyAlerts } from "@/lib/api-service"
-import type { EmergencyAlert } from "@/lib/types"
+import { getUrgentAnnouncements, type PublicAnnouncement } from "@/lib/api-service"
 
-interface EmergencyAlertProps {
-  title?: string
-  message?: string
-  authority?: string
-  timestamp?: string
+interface UrgentAlertDisplay {
+  id: string
+  title: string
+  message: string
+  department: string
+  publishedAt: string
 }
 
 function formatTimestamp(dateString: string): string {
@@ -25,35 +25,30 @@ function formatTimestamp(dateString: string): string {
   return date.toLocaleDateString()
 }
 
-export default function EmergencyAlertComponent({ title: propTitle, message: propMessage, authority: propAuthority, timestamp: propTimestamp }: EmergencyAlertProps) {
-  const [alerts, setAlerts] = useState<EmergencyAlert[]>([])
+export default function EmergencyAlertComponent() {
+  const [alerts, setAlerts] = useState<UrgentAlertDisplay[]>([])
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
 
   const fetchAlerts = useCallback(async () => {
     setIsLoading(true)
     try {
-      const fetchedAlerts = await getEmergencyAlerts()
-      const activeAlerts = fetchedAlerts.filter(alert => alert.isActive)
-      setAlerts(activeAlerts)
+      const urgentAnnouncements = await getUrgentAnnouncements()
+      // Transform announcements to alert display format
+      const transformedAlerts: UrgentAlertDisplay[] = urgentAnnouncements.map((announcement: PublicAnnouncement) => ({
+        id: announcement.id,
+        title: announcement.title,
+        message: announcement.content,
+        department: announcement.department || "Government Authority",
+        publishedAt: announcement.publishedAt || new Date().toISOString(),
+      }))
+      setAlerts(transformedAlerts)
     } catch {
-      // If API fails and props are provided, use props as fallback
-      if (propTitle && propMessage) {
-        setAlerts([{
-          id: "fallback",
-          title: propTitle,
-          message: propMessage,
-          authority: propAuthority || "Government Authority",
-          isActive: true,
-          createdAt: propTimestamp || new Date().toISOString(),
-        }])
-      } else {
-        setAlerts([])
-      }
+      setAlerts([])
     } finally {
       setIsLoading(false)
     }
-  }, [propTitle, propMessage, propAuthority, propTimestamp])
+  }, [])
 
   useEffect(() => {
     fetchAlerts()
@@ -106,13 +101,13 @@ export default function EmergencyAlertComponent({ title: propTitle, message: pro
                 <p className="text-sm text-red-700 dark:text-red-300 mt-1">{alert.message}</p>
                 <div className="flex justify-between items-center mt-2">
                   <p className="text-xs text-red-600 dark:text-red-400">
-                    Issued by: <span className="font-medium">{alert.authority}</span>
+                    Issued by: <span className="font-medium">{alert.department}</span>
                   </p>
                   <Badge
                     variant="outline"
                     className="text-xs border-red-300 dark:border-red-700 text-red-700 dark:text-red-400"
                   >
-                    {formatTimestamp(alert.createdAt)}
+                    {formatTimestamp(alert.publishedAt)}
                   </Badge>
                 </div>
               </div>
