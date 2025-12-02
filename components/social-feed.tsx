@@ -23,13 +23,14 @@ import {
   Flag,
   UserX,
   Loader2,
+  Trash2,
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/components/auth-provider"
-import { getPostsFeed, createPost, likePost, unlikePost, getPostComments, addComment, connectWithUser, disconnectFromUser } from "@/lib/api-service"
+import { getPostsFeed, createPost, likePost, unlikePost, getPostComments, addComment, connectWithUser, disconnectFromUser, deletePost } from "@/lib/api-service"
 import { getToken } from "@/lib/auth-service"
 import type { Post, Comment } from "@/lib/types"
 import { toast } from "sonner"
@@ -232,6 +233,10 @@ export default function SocialFeed() {
 
   const handleEmojiSelect = (emoji: string) => {
     setPostContent((prev) => prev + emoji)
+  }
+
+  const handleDeletePost = (postId: string) => {
+    setPosts(posts.filter(post => post.id !== postId))
   }
 
   // Loading skeleton
@@ -483,7 +488,7 @@ export default function SocialFeed() {
 
         <TabsContent value="all" className="space-y-4">
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post.id} post={post} onDelete={handleDeletePost} />
           ))}
         </TabsContent>
 
@@ -491,7 +496,7 @@ export default function SocialFeed() {
           {posts
             .filter((post) => post.author.role === "official")
             .map((post) => (
-              <PostCard key={post.id} post={post} />
+              <PostCard key={post.id} post={post} onDelete={handleDeletePost} />
             ))}
         </TabsContent>
 
@@ -499,7 +504,7 @@ export default function SocialFeed() {
           {posts
             .filter((post) => post.author.role === "citizen")
             .map((post) => (
-              <PostCard key={post.id} post={post} />
+              <PostCard key={post.id} post={post} onDelete={handleDeletePost} />
             ))}
         </TabsContent>
       </Tabs>
@@ -509,15 +514,17 @@ export default function SocialFeed() {
 
 interface PostCardProps {
   post: Post
+  onDelete?: (postId: string) => void
 }
 
-function PostCard({ post }: PostCardProps) {
+function PostCard({ post, onDelete }: PostCardProps) {
   const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(post.likes)
   const [following, setFollowing] = useState(false)
   const [saved, setSaved] = useState(false)
   const [isLiking, setIsLiking] = useState(false)
   const [isFollowing, setIsFollowing] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState("")
@@ -526,6 +533,7 @@ function PostCard({ post }: PostCardProps) {
   const { isLoggedIn, user } = useAuth()
 
   const isOfficial = post.author.role === "official"
+  const isOwnPost = user?.id === post.authorId || user?.id === post.author?.id
 
   const handleToggleComments = async () => {
     if (!showComments && comments.length === 0) {
@@ -628,6 +636,32 @@ function PostCard({ post }: PostCardProps) {
     }
   }
 
+  const handleDelete = async () => {
+    if (!isLoggedIn || !isOwnPost) {
+      toast.error("You can only delete your own posts")
+      return
+    }
+
+    if (!confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
+      return
+    }
+
+    setIsDeleting(true)
+    try {
+      const token = getToken()
+      if (token) {
+        await deletePost(post.id, token)
+        toast.success("Post deleted successfully")
+        onDelete?.(post.id)
+      }
+    } catch (err) {
+      console.error("Failed to delete post:", err)
+      toast.error("Failed to delete post. Please try again.")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <Card className="border-purple-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
       <CardHeader className="pb-2">
@@ -708,14 +742,28 @@ function PostCard({ post }: PostCardProps) {
                   <Bookmark className={`h-4 w-4 mr-2 ${saved ? "fill-purple-500 text-purple-500" : ""}`} />
                   {saved ? "Unsave post" : "Save post"}
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Flag className="h-4 w-4 mr-2" />
-                  Report post
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <UserX className="h-4 w-4 mr-2" />
-                  Hide posts from this user
-                </DropdownMenuItem>
+                {isOwnPost && (
+                  <DropdownMenuItem 
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {isDeleting ? "Deleting..." : "Delete post"}
+                  </DropdownMenuItem>
+                )}
+                {!isOwnPost && (
+                  <>
+                    <DropdownMenuItem>
+                      <Flag className="h-4 w-4 mr-2" />
+                      Report post
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <UserX className="h-4 w-4 mr-2" />
+                      Hide posts from this user
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
