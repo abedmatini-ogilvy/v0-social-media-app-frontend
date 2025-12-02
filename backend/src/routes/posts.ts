@@ -7,7 +7,10 @@ import * as postController from '../controllers/postController.js';
 
 const router = Router();
 
-// All post routes require authentication
+// Public route - no authentication required
+router.get('/public', asyncHandler(postController.getPublicFeed));
+
+// All other post routes require authentication
 router.use(authenticate);
 
 // Create post validation

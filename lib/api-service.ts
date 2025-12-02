@@ -57,6 +57,7 @@ export const API_ENDPOINTS = {
   // Posts endpoints
   POSTS: {
     FEED: `${API_BASE_URL}/posts/feed`,
+    PUBLIC: `${API_BASE_URL}/posts/public`,
     CREATE: `${API_BASE_URL}/posts`,
     GET: (postId: string) => `${API_BASE_URL}/posts/${postId}`,
     UPDATE: (postId: string) => `${API_BASE_URL}/posts/${postId}`,
@@ -248,6 +249,16 @@ export async function getPostsFeed(token: string): Promise<Post[]> {
     token
   )
   return response.posts
+}
+
+// Public feed - no authentication required
+export async function getPublicFeed(): Promise<Post[]> {
+  const response = await fetch(API_ENDPOINTS.POSTS.PUBLIC)
+  if (!response.ok) {
+    throw new Error('Failed to fetch public feed')
+  }
+  const data = await response.json()
+  return data.posts
 }
 
 export async function createPost(

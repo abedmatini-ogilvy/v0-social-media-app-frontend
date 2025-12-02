@@ -1,4 +1,4 @@
-import { type Response } from 'express';
+import { type Response, type Request } from 'express';
 import prisma from '../services/prisma.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { type AuthRequest } from '../middleware/auth.js';
@@ -80,6 +80,48 @@ export const getFeed = async (req: AuthRequest, res: Response): Promise<void> =>
     });
   } catch (error) {
     throw new AppError('Failed to get feed', 500, 'INTERNAL_ERROR');
+  }
+};
+
+// Public feed - no authentication required
+export const getPublicFeed = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+
+    const posts = await prisma.post.findMany({
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+            role: true,
+            isVerified: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    });
+
+    const total = await prisma.post.count();
+
+    res.json({
+      posts: posts.map(formatPostResponse),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    throw new AppError('Failed to get public feed', 500, 'INTERNAL_ERROR');
   }
 };
 

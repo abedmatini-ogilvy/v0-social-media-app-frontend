@@ -34,7 +34,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/components/auth-provider"
-import { getPostsFeed, createPost, likePost, unlikePost, getPostComments, addComment, connectWithUser, disconnectFromUser, deletePost, uploadImage } from "@/lib/api-service"
+import { getPostsFeed, getPublicFeed, createPost, likePost, unlikePost, getPostComments, addComment, connectWithUser, disconnectFromUser, deletePost, uploadImage } from "@/lib/api-service"
 import { getToken } from "@/lib/auth-service"
 import type { Post, Comment } from "@/lib/types"
 import { toast } from "sonner"
@@ -186,11 +186,13 @@ export default function SocialFeed() {
     try {
       const token = getToken()
       if (token) {
+        // Authenticated user - fetch private feed
         const fetchedPosts = await getPostsFeed(token)
         setPosts(fetchedPosts)
       } else {
-        // Use mock data when not authenticated
-        setPosts(mockPosts)
+        // Non-authenticated user - fetch public feed
+        const fetchedPosts = await getPublicFeed()
+        setPosts(fetchedPosts)
       }
     } catch (err) {
       console.error("Failed to fetch posts:", err)
@@ -481,24 +483,25 @@ export default function SocialFeed() {
         </div>
       )}
 
-      {/* Post creation card */}
-      <Card className="border-purple-100 dark:border-gray-800 shadow-md">
-        <CardContent className="pt-4">
-          <div className="flex gap-3">
-            <Avatar>
-              <AvatarImage src={user?.avatar || "/placeholder.svg?height=40&width=40"} alt="User" />
-              <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                {user?.name?.[0] || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <Textarea
-                placeholder={isLoggedIn ? "Share updates or ask a question..." : "Login to share updates..."}
-                className="resize-none border-purple-200 dark:border-gray-700 focus-visible:ring-purple-400"
-                value={postContent}
-                onChange={(e) => setPostContent(e.target.value)}
-                disabled={!isLoggedIn || isPosting}
-              />
+      {/* Post creation card - only show when logged in */}
+      {isLoggedIn ? (
+        <Card className="border-purple-100 dark:border-gray-800 shadow-md">
+          <CardContent className="pt-4">
+            <div className="flex gap-3">
+              <Avatar>
+                <AvatarImage src={user?.avatar || "/placeholder.svg?height=40&width=40"} alt="User" />
+                <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                  {user?.name?.[0] || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <Textarea
+                  placeholder="Share updates or ask a question..."
+                  className="resize-none border-purple-200 dark:border-gray-700 focus-visible:ring-purple-400"
+                  value={postContent}
+                  onChange={(e) => setPostContent(e.target.value)}
+                  disabled={isPosting}
+                />
               
               {/* Image preview */}
               {postImage && (
@@ -647,8 +650,29 @@ export default function SocialFeed() {
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : (
+        /* Login prompt for non-logged-in users */
+        <Card className="border-purple-100 dark:border-gray-800 shadow-md">
+          <CardContent className="py-6">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Join the conversation
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Login to share updates, like posts, and connect with others.
+              </p>
+              <Button
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                onClick={() => window.location.href = '/login'}
+              >
+                Login to Post
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Feed tabs */}
       <Tabs defaultValue="all" className="w-full">
