@@ -111,6 +111,7 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
 
     res.status(201).json(formatPostResponse(post));
   } catch (error) {
+    console.error('Create post error:', error);
     throw new AppError('Failed to create post', 500, 'INTERNAL_ERROR');
   }
 };
