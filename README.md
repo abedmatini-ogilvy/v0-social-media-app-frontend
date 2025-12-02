@@ -1,6 +1,6 @@
 # CivicConnect Mobile-First Social Media App
 
-This repository contains the frontend code for the CivicConnect civic-tech web application, optimized for mobile devices with a social media app-like interface.
+This repository contains the frontend code for the CivicConnect civic-tech web application, optimized for mobile devices with a social media app-like interface..
 
 ## Features
 
