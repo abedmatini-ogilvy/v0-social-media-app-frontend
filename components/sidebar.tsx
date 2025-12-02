@@ -1,56 +1,147 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Briefcase, Calendar, Users, UserPlus } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { FileText, Briefcase, Calendar, Users, UserPlus, UserCheck, Loader2 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
+import { useAuth } from "@/components/auth-provider"
+import { getSchemes, getJobs, getEvents, getSuggestedConnections, connectWithUser } from "@/lib/api-service"
+import { getToken } from "@/lib/auth-service"
+import type { Scheme, Job, Event, User } from "@/lib/types"
+import { toast } from "sonner"
 
-// Sample data for suggested connections
-const suggestedConnections = [
-  {
-    id: 1,
-    name: "Amit Patel",
-    role: "Urban Planner",
-    avatar: "/placeholder.svg?height=40&width=40",
-    mutualConnections: 5,
-  },
-  {
-    id: 2,
-    name: "Neha Singh",
-    role: "Community Organizer",
-    avatar: "/placeholder.svg?height=40&width=40",
-    mutualConnections: 3,
-  },
-  {
-    id: 3,
-    name: "Rajesh Kumar",
-    role: "Local Business Owner",
-    avatar: "/placeholder.svg?height=40&width=40",
-    mutualConnections: 2,
-  },
+// Fallback data when API is not available
+const fallbackConnections = [
+  { id: "1", name: "Amit Patel", role: "citizen", avatar: null, email: "", isVerified: false, createdAt: "" },
+  { id: "2", name: "Neha Singh", role: "citizen", avatar: null, email: "", isVerified: false, createdAt: "" },
+  { id: "3", name: "Rajesh Kumar", role: "citizen", avatar: null, email: "", isVerified: false, createdAt: "" },
 ]
 
-// Sample data for schemes
-const schemes = [
-  { title: "PM Kisan Samman Nidhi", deadline: "June 30, 2023", isNew: true },
-  { title: "Digital Literacy Program", deadline: "Open", isNew: false },
-  { title: "Skill India Initiative", deadline: "July 15, 2023", isNew: true },
+const fallbackSchemes = [
+  { id: "1", title: "PM Kisan Samman Nidhi", deadline: new Date().toISOString(), isNew: true, description: "", eligibility: "", documents: [], fundingDetails: "", applicationProcess: "", createdAt: "" },
+  { id: "2", title: "Digital Literacy Program", deadline: new Date().toISOString(), isNew: false, description: "", eligibility: "", documents: [], fundingDetails: "", applicationProcess: "", createdAt: "" },
 ]
 
-// Sample data for jobs
-const jobs = [
-  { title: "Digital Marketing Assistant", company: "TechSolutions Ltd", location: "Mumbai", isNew: true },
-  { title: "Community Manager", company: "Local Government", location: "Delhi NCR", isNew: true },
-  { title: "Data Entry Operator", company: "Public Services", location: "Bangalore", isNew: false },
+const fallbackJobs = [
+  { id: "1", title: "Junior Developer", company: "Tech Solutions", location: "Mumbai", isNew: true, description: "", requirements: [], postedAt: "" },
+  { id: "2", title: "Government Clerk", company: "State PSC", location: "Delhi", isNew: true, description: "", requirements: [], postedAt: "" },
 ]
 
-// Sample data for events
-const events = [
-  { title: "Digital Literacy Workshop", date: "June 15, 2023", location: "Community Center, Sector 15" },
-  { title: "Public Hearing on Infrastructure", date: "June 20, 2023", location: "Municipal Hall" },
+const fallbackEvents = [
+  { id: "1", title: "Digital Literacy Workshop", date: new Date().toISOString(), location: "Community Center", description: "", organizer: "", attendees: 0, createdAt: "" },
+  { id: "2", title: "Job Fair 2024", date: new Date().toISOString(), location: "Town Hall", description: "", organizer: "", attendees: 0, createdAt: "" },
 ]
+
+function formatDeadline(dateString: string): string {
+  const date = new Date(dateString)
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
+function formatEventDate(dateString: string): string {
+  const date = new Date(dateString)
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })
+}
 
 export default function Sidebar() {
+  const [schemes, setSchemes] = useState<Scheme[]>([])
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [events, setEvents] = useState<Event[]>([])
+  const [suggestedUsers, setSuggestedUsers] = useState<User[]>([])
+  const [connectedUsers, setConnectedUsers] = useState<Set<string>>(new Set())
+  const [connectingUsers, setConnectingUsers] = useState<Set<string>>(new Set())
+  const [isLoading, setIsLoading] = useState(true)
+  const { isLoggedIn } = useAuth()
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      // Fetch public data (schemes, jobs, events)
+      const [schemesData, jobsData, eventsData] = await Promise.all([
+        getSchemes().catch(() => fallbackSchemes),
+        getJobs().catch(() => fallbackJobs),
+        getEvents().catch(() => fallbackEvents),
+      ])
+      
+      setSchemes(schemesData.slice(0, 3))
+      setJobs(jobsData.slice(0, 3))
+      setEvents(eventsData.slice(0, 2))
+
+      // Fetch suggested connections if logged in
+      const token = getToken()
+      if (token) {
+        try {
+          const suggested = await getSuggestedConnections(token)
+          setSuggestedUsers(suggested.slice(0, 3))
+        } catch {
+          setSuggestedUsers(fallbackConnections as User[])
+        }
+      } else {
+        setSuggestedUsers(fallbackConnections as User[])
+      }
+    } catch (error) {
+      console.error("Failed to fetch sidebar data:", error)
+      setSchemes(fallbackSchemes as Scheme[])
+      setJobs(fallbackJobs as Job[])
+      setEvents(fallbackEvents as Event[])
+      setSuggestedUsers(fallbackConnections as User[])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData, isLoggedIn])
+
+  const handleConnect = async (userId: string) => {
+    if (!isLoggedIn) {
+      toast.error("Please login to connect")
+      return
+    }
+
+    setConnectingUsers((prev) => new Set([...prev, userId]))
+    try {
+      const token = getToken()
+      if (token) {
+        await connectWithUser(userId, token)
+        setConnectedUsers((prev) => new Set([...prev, userId]))
+        toast.success("Connected!")
+      }
+    } catch (error) {
+      console.error("Failed to connect:", error)
+      toast.error("Failed to connect")
+    } finally {
+      setConnectingUsers((prev) => {
+        const next = new Set(prev)
+        next.delete(userId)
+        return next
+      })
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="border-purple-100 shadow-md overflow-hidden">
+            <CardHeader className="pb-2">
+              <Skeleton className="h-6 w-32" />
+            </CardHeader>
+            <CardContent className="space-y-3 pt-4">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* People to Connect With */}
@@ -63,34 +154,48 @@ export default function Sidebar() {
         </CardHeader>
         <CardContent className="pt-4">
           <div className="space-y-4">
-            {suggestedConnections.map((connection) => (
-              <div key={connection.id} className="flex items-center justify-between">
+            {suggestedUsers.map((user) => (
+              <div key={user.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Avatar>
-                    <AvatarImage src={connection.avatar || "/placeholder.svg"} alt={connection.name} />
+                    <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
                     <AvatarFallback className="bg-gradient-to-r from-green-500 to-teal-500 text-white">
-                      {connection.name[0]}
+                      {user.name[0]}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-medium text-sm">{connection.name}</p>
-                    <p className="text-xs text-gray-500">{connection.role}</p>
-                    <p className="text-xs text-purple-600">{connection.mutualConnections} mutual connections</p>
+                    <p className="font-medium text-sm">{user.name}</p>
+                    <p className="text-xs text-gray-500 capitalize">{user.role}</p>
                   </div>
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 border-purple-200 text-purple-700 hover:bg-purple-50"
+                  className={`h-8 ${connectedUsers.has(user.id) ? 'bg-purple-100 border-purple-300 text-purple-700' : 'border-purple-200 text-purple-700 hover:bg-purple-50'}`}
+                  onClick={() => handleConnect(user.id)}
+                  disabled={connectingUsers.has(user.id) || connectedUsers.has(user.id)}
                 >
-                  <UserPlus className="h-3 w-3 mr-1" />
-                  <span className="text-xs">Connect</span>
+                  {connectingUsers.has(user.id) ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : connectedUsers.has(user.id) ? (
+                    <>
+                      <UserCheck className="h-3 w-3 mr-1" />
+                      <span className="text-xs">Connected</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-3 w-3 mr-1" />
+                      <span className="text-xs">Connect</span>
+                    </>
+                  )}
                 </Button>
               </div>
             ))}
-            <Button variant="ghost" size="sm" className="w-full mt-2 text-purple-700 hover:bg-purple-50">
-              View More Suggestions
-            </Button>
+            <Link href="/community">
+              <Button variant="ghost" size="sm" className="w-full mt-2 text-purple-700 hover:bg-purple-50">
+                View More Suggestions
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
@@ -104,20 +209,22 @@ export default function Sidebar() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 pt-4">
-          {schemes.map((scheme, index) => (
-            <div key={index} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+          {schemes.map((scheme) => (
+            <div key={scheme.id} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-medium text-sm">{scheme.title}</p>
-                  <p className="text-xs text-gray-500">Deadline: {scheme.deadline}</p>
+                  <p className="text-xs text-gray-500">Deadline: {formatDeadline(scheme.deadline)}</p>
                 </div>
                 {scheme.isNew && <Badge className="bg-green-100 text-green-800 text-xs border-0">New</Badge>}
               </div>
             </div>
           ))}
-          <Button variant="outline" size="sm" className="w-full mt-2 border-blue-200 text-blue-700 hover:bg-blue-50">
-            <Link href="/schemes">View All Schemes</Link>
-          </Button>
+          <Link href="/schemes">
+            <Button variant="outline" size="sm" className="w-full mt-2 border-blue-200 text-blue-700 hover:bg-blue-50">
+              View All Schemes
+            </Button>
+          </Link>
         </CardContent>
       </Card>
 
@@ -130,8 +237,8 @@ export default function Sidebar() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 pt-4">
-          {jobs.map((job, index) => (
-            <div key={index} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+          {jobs.map((job) => (
+            <div key={job.id} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-medium text-sm">{job.title}</p>
@@ -143,9 +250,11 @@ export default function Sidebar() {
               </div>
             </div>
           ))}
-          <Button variant="outline" size="sm" className="w-full mt-2 border-green-200 text-green-700 hover:bg-green-50">
-            <Link href="/jobs">View All Jobs</Link>
-          </Button>
+          <Link href="/jobs">
+            <Button variant="outline" size="sm" className="w-full mt-2 border-green-200 text-green-700 hover:bg-green-50">
+              View All Jobs
+            </Button>
+          </Link>
         </CardContent>
       </Card>
 
@@ -158,20 +267,22 @@ export default function Sidebar() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 pt-4">
-          {events.map((event, index) => (
-            <div key={index} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+          {events.map((event) => (
+            <div key={event.id} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
               <p className="font-medium text-sm">{event.title}</p>
-              <p className="text-xs text-gray-500">{event.date}</p>
+              <p className="text-xs text-gray-500">{formatEventDate(event.date)}</p>
               <p className="text-xs text-gray-500">{event.location}</p>
             </div>
           ))}
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full mt-2 border-orange-200 text-orange-700 hover:bg-orange-50"
-          >
-            <Link href="/events">View Calendar</Link>
-          </Button>
+          <Link href="/events">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full mt-2 border-orange-200 text-orange-700 hover:bg-orange-50"
+            >
+              View Calendar
+            </Button>
+          </Link>
         </CardContent>
       </Card>
     </div>

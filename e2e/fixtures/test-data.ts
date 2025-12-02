@@ -17,6 +17,24 @@ export const seedUsers = {
     password: 'password123',
     role: 'citizen' as const,
   },
+  official: {
+    name: 'Municipal Official',
+    email: 'official@gov.in',
+    password: 'password123',
+    role: 'official' as const,
+  },
+  anita: {
+    name: 'Anita Desai',
+    email: 'anita@example.com',
+    password: 'password123',
+    role: 'citizen' as const,
+  },
+  health: {
+    name: 'Health Department',
+    email: 'health@gov.in',
+    password: 'password123',
+    role: 'official' as const,
+  },
 };
 
 // Test user templates

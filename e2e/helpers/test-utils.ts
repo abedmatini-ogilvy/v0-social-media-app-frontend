@@ -55,18 +55,51 @@ export async function loginViaUI(
   email: string = config.testUserEmail,
   password: string = config.testUserPassword
 ): Promise<void> {
+  // Clear any existing session first
+  await page.goto('/');
+  await page.evaluate(() => {
+    localStorage.removeItem('civicconnect_token');
+    localStorage.removeItem('civicconnect_refresh_token');
+    localStorage.removeItem('civicconnect_user');
+  });
+  
   await page.goto('/login');
   await page.waitForLoadState('networkidle');
+  
+  // Wait for page to be fully loaded and inputs enabled
+  await page.waitForTimeout(1000);
 
-  // Fill login form
-  await page.fill('input[type="email"], input[name="email"]', email);
-  await page.fill('input[type="password"], input[name="password"]', password);
+  // Fill login form - wait for inputs to be visible AND enabled (citizen tab is default)
+  const emailInput = page.locator('#email');
+  await emailInput.waitFor({ state: 'visible', timeout: 15000 });
+  
+  // Wait until input is enabled (not disabled)
+  await page.waitForFunction(
+    () => {
+      const input = document.querySelector('#email') as HTMLInputElement;
+      return input && !input.disabled;
+    },
+    { timeout: 15000 }
+  );
+  
+  await emailInput.fill(email);
+  await page.locator('#password').fill(password);
 
   // Submit form
   await page.click('button[type="submit"]');
 
-  // Wait for redirect to home page
-  await page.waitForURL('/', { timeout: 30000 });
+  // Wait for redirect to home page or successful login
+  try {
+    await page.waitForURL('/', { timeout: 30000 });
+  } catch {
+    // If redirect didn't happen, check if we're logged in via token
+    const token = await page.evaluate(() => localStorage.getItem('civicconnect_token'));
+    if (token) {
+      await page.goto('/');
+    } else {
+      throw new Error('Login failed - no redirect and no token');
+    }
+  }
 }
 
 /**
@@ -92,15 +125,16 @@ export async function loginViaAPI(page: Page, email: string, password: string): 
  * Logout helper
  */
 export async function logout(page: Page): Promise<void> {
+  // Navigate to home first to ensure we have a valid page context
+  await page.goto('/');
+  await page.waitForLoadState('domcontentloaded');
+  
   // Clear localStorage
   await page.evaluate(() => {
     localStorage.removeItem('civicconnect_token');
     localStorage.removeItem('civicconnect_refresh_token');
     localStorage.removeItem('civicconnect_user');
   });
-
-  // Navigate to login page
-  await page.goto('/login');
 }
 
 /**

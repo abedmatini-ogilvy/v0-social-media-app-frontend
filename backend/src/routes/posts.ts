@@ -14,12 +14,14 @@ router.use(authenticate);
 const createPostValidation = [
   body('content').trim().notEmpty().withMessage('Content is required'),
   body('image').optional(),
+  body('location').optional().trim(),
 ];
 
 // Update post validation
 const updatePostValidation = [
   body('content').optional().trim().notEmpty().withMessage('Content cannot be empty'),
   body('image').optional(),
+  body('location').optional().trim(),
 ];
 
 // Comment validation

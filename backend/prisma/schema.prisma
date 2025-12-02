@@ -57,6 +57,7 @@ model Post {
   id        String   @id @default(cuid())
   content   String
   image     String?
+  location  String?
   likes     Int      @default(0)
   comments  Int      @default(0)
   shares    Int      @default(0)

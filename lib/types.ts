@@ -25,6 +25,7 @@ export interface Post {
   id: string
   content: string
   image?: string | null
+  location?: string | null
   likes: number
   comments: number
   shares: number

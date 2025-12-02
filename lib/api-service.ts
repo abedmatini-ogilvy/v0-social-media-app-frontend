@@ -245,14 +245,21 @@ export async function getPostsFeed(token: string): Promise<Post[]> {
   return response.posts
 }
 
-export async function createPost(content: string, token: string, image?: File): Promise<Post> {
-  if (image) {
-    const formData = new FormData()
-    formData.append("content", content)
-    formData.append("image", image)
-    return apiRequest<Post>(API_ENDPOINTS.POSTS.CREATE, "POST", formData, token)
-  }
-  return apiRequest<Post>(API_ENDPOINTS.POSTS.CREATE, "POST", { content }, token)
+export async function createPost(
+  content: string, 
+  token: string, 
+  options?: { image?: string; location?: string }
+): Promise<Post> {
+  return apiRequest<Post>(
+    API_ENDPOINTS.POSTS.CREATE, 
+    "POST", 
+    { 
+      content, 
+      image: options?.image,
+      location: options?.location 
+    }, 
+    token
+  )
 }
 
 export async function getPost(postId: string, token: string): Promise<Post> {

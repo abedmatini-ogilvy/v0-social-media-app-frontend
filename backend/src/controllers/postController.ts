@@ -8,6 +8,7 @@ const formatPostResponse = (post: {
   id: string;
   content: string;
   image: string | null;
+  location: string | null;
   likes: number;
   comments: number;
   shares: number;
@@ -25,6 +26,7 @@ const formatPostResponse = (post: {
   id: post.id,
   content: post.content,
   image: post.image,
+  location: post.location,
   likes: post.likes,
   comments: post.comments,
   shares: post.shares,
@@ -83,12 +85,13 @@ export const getFeed = async (req: AuthRequest, res: Response): Promise<void> =>
 
 export const createPost = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { content, image } = req.body;
+    const { content, image, location } = req.body;
 
     const post = await prisma.post.create({
       data: {
         content,
         image,
+        location,
         authorId: req.userId!,
       },
       include: {
@@ -164,11 +167,13 @@ export const updatePost = async (req: AuthRequest, res: Response): Promise<void>
       throw new AppError('Not authorized to update this post', 403, 'FORBIDDEN');
     }
 
+    const { location } = req.body;
     const post = await prisma.post.update({
       where: { id: postId },
       data: {
         ...(content && { content }),
         ...(image !== undefined && { image }),
+        ...(location !== undefined && { location }),
       },
       include: {
         author: {
