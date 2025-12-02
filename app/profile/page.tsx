@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Edit, MapPin, Briefcase, Calendar, Mail, Phone, Globe, Users, MessageCircle, Camera, Heart, MessageSquare, Share2, Loader2, ArrowLeft } from "lucide-react"
+import { Edit, MapPin, Briefcase, Calendar, Mail, Phone, Globe, Users, MessageCircle, Camera, Heart, MessageSquare, Share2, Loader2, ArrowLeft, X, Plus } from "lucide-react"
 import MobileHeader from "@/components/mobile-header"
 import MobileFooterNav from "@/components/mobile-footer-nav"
 import DesktopHeader from "@/components/desktop-header"
@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { getUserProfile, updateUserProfile, getUserPosts } from "@/lib/api-service"
+import { getUserProfile, updateUserProfile, getUserPosts, uploadAvatar, uploadCoverPhoto } from "@/lib/api-service"
 import { getToken } from "@/lib/auth-service"
 import { useAuth } from "@/components/auth-provider"
 import type { Post } from "@/lib/types"
@@ -60,7 +60,11 @@ export default function ProfilePage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [isUploadingCover, setIsUploadingCover] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editInterests, setEditInterests] = useState<string[]>([])
+  const [newInterest, setNewInterest] = useState("")
   const { user, isLoggedIn, isLoading: authLoading } = useAuth()
 
   const fetchProfile = useCallback(async () => {
@@ -80,7 +84,7 @@ export default function ProfilePage() {
         name: profileData.name || user?.name || "User",
         handle: `@${(profileData.name || "user").toLowerCase().replace(/\s+/g, "")}`,
         avatar: profileData.avatar || "/placeholder.svg?height=100&width=100",
-        coverPhoto: "/placeholder.svg?height=400&width=1200",
+        coverPhoto: profileData.coverPhoto || "/placeholder.svg?height=400&width=1200",
         bio: profileData.bio || "Welcome to CivicConnect!",
         location: profileData.location || "India",
         occupation: profileData.occupation || "",
@@ -127,6 +131,8 @@ export default function ProfilePage() {
     if (!token) return
     setIsSaving(true)
     try {
+      const interestsJson = formData.get("interests") as string
+      const interests = interestsJson ? JSON.parse(interestsJson) : []
       const updateData = {
         name: formData.get("name") as string,
         bio: formData.get("bio") as string,
@@ -134,6 +140,7 @@ export default function ProfilePage() {
         occupation: formData.get("occupation") as string,
         phone: formData.get("phone") as string,
         website: formData.get("website") as string,
+        interests,
       }
       await updateUserProfile(token, updateData)
       setProfile(prev => ({
@@ -144,6 +151,7 @@ export default function ProfilePage() {
         occupation: updateData.occupation || prev.occupation,
         phone: updateData.phone || prev.phone,
         website: updateData.website || prev.website,
+        interests: updateData.interests,
       }))
       setEditDialogOpen(false)
       toast.success("Profile updated successfully!")
@@ -152,6 +160,53 @@ export default function ProfilePage() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const token = getToken()
+    if (!token) return
+
+    setIsUploadingAvatar(true)
+    try {
+      const result = await uploadAvatar(file, token)
+      setProfile(prev => ({ ...prev, avatar: result.url }))
+      toast.success("Avatar updated!")
+    } catch {
+      toast.error("Failed to upload avatar")
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const token = getToken()
+    if (!token) return
+
+    setIsUploadingCover(true)
+    try {
+      const result = await uploadCoverPhoto(file, token)
+      setProfile(prev => ({ ...prev, coverPhoto: result.url }))
+      toast.success("Cover photo updated!")
+    } catch {
+      toast.error("Failed to upload cover photo")
+    } finally {
+      setIsUploadingCover(false)
+    }
+  }
+
+  const addInterest = () => {
+    if (newInterest.trim() && !editInterests.includes(newInterest.trim())) {
+      setEditInterests([...editInterests, newInterest.trim()])
+      setNewInterest("")
+    }
+  }
+
+  const removeInterest = (interest: string) => {
+    setEditInterests(editInterests.filter(i => i !== interest))
   }
 
   if (authLoading || isLoading) {
@@ -208,17 +263,50 @@ export default function ProfilePage() {
 
         {/* Profile Header */}
         <div className="relative mb-6">
-          <div className="h-32 md:h-48 rounded-lg bg-gradient-to-r from-purple-400 to-blue-500 relative overflow-hidden">
+          <div className="h-32 md:h-48 rounded-lg bg-gradient-to-r from-purple-400 to-blue-500 relative overflow-hidden group">
             <img src={profile.coverPhoto} alt="Cover" className="w-full h-full object-cover" />
+            <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleCoverUpload}
+                disabled={isUploadingCover}
+              />
+              {isUploadingCover ? (
+                <Loader2 className="h-8 w-8 text-white animate-spin" />
+              ) : (
+                <div className="flex flex-col items-center text-white">
+                  <Camera className="h-8 w-8 mb-1" />
+                  <span className="text-sm">Change Cover</span>
+                </div>
+              )}
+            </label>
           </div>
           <div className="flex flex-col md:flex-row md:items-end md:justify-between px-4 -mt-16 md:-mt-20 relative">
             <div className="flex flex-col md:flex-row md:items-center">
-              <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-white dark:border-gray-900 shadow-md">
-                <AvatarImage src={profile.avatar} alt={profile.name} />
-                <AvatarFallback className="bg-gradient-to-r from-purple-500 to-blue-500 text-2xl text-white">
-                  {profile.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative group">
+                <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-white dark:border-gray-900 shadow-md">
+                  <AvatarImage src={profile.avatar} alt={profile.name} />
+                  <AvatarFallback className="bg-gradient-to-r from-purple-500 to-blue-500 text-2xl text-white">
+                    {profile.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                    disabled={isUploadingAvatar}
+                  />
+                  {isUploadingAvatar ? (
+                    <Loader2 className="h-6 w-6 text-white animate-spin" />
+                  ) : (
+                    <Camera className="h-6 w-6 text-white" />
+                  )}
+                </label>
+              </div>
               <div className="mt-2 md:mt-0 md:ml-4">
                 <div className="flex items-center">
                   <h1 className="text-xl md:text-2xl font-bold">{profile.name}</h1>
@@ -228,7 +316,10 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="flex mt-4 md:mt-0 space-x-2">
-              <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+              <Dialog open={editDialogOpen} onOpenChange={(open) => {
+                setEditDialogOpen(open)
+                if (open) setEditInterests(profile.interests)
+              }}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600">
                     <Edit className="h-4 w-4 mr-1" />
@@ -267,6 +358,31 @@ export default function ProfilePage() {
                           <Label htmlFor="website">Website</Label>
                           <Input id="website" name="website" defaultValue={profile.website} />
                         </div>
+                        <div className="grid gap-2">
+                          <Label>Interests</Label>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {editInterests.map((interest) => (
+                              <Badge key={interest} variant="secondary" className="flex items-center gap-1">
+                                {interest}
+                                <button type="button" onClick={() => removeInterest(interest)} className="hover:text-red-500">
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Add interest..."
+                              value={newInterest}
+                              onChange={(e) => setNewInterest(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addInterest() } }}
+                            />
+                            <Button type="button" size="icon" variant="outline" onClick={addInterest}>
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <input type="hidden" name="interests" value={JSON.stringify(editInterests)} />
+                        </div>
                       </div>
                     </ScrollArea>
                     <DialogFooter>
@@ -285,6 +401,20 @@ export default function ProfilePage() {
         <div className="mb-6">
           <p className="text-sm">{profile.bio}</p>
         </div>
+
+        {/* Interests */}
+        {profile.interests.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Interests</h3>
+            <div className="flex flex-wrap gap-2">
+              {profile.interests.map((interest) => (
+                <Badge key={interest} variant="secondary" className="bg-purple-100 text-purple-700 hover:bg-purple-200">
+                  {interest}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Profile Info Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
