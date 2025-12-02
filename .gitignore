@@ -50,6 +50,3 @@ next-env.d.ts
 backend/node_modules/
 backend/dist/
 backend/.env
-
-# Lock files at root (frontend uses pnpm-lock.yaml)
-package-lock.json
