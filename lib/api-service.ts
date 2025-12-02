@@ -52,6 +52,8 @@ export const API_ENDPOINTS = {
   // Upload endpoints
   UPLOAD: {
     IMAGE: `${API_BASE_URL}/upload/image`,
+    AVATAR: `${API_BASE_URL}/upload/avatar`,
+    COVER: `${API_BASE_URL}/upload/cover`,
   },
 
   // Posts endpoints
@@ -331,6 +333,48 @@ export async function uploadImage(file: File, token: string): Promise<UploadResp
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error?.message || 'Failed to upload image');
+  }
+
+  return response.json();
+}
+
+// Upload avatar
+export async function uploadAvatar(file: File, token: string): Promise<UploadResponse> {
+  const formData = new FormData();
+  formData.append('avatar', file);
+
+  const response = await fetch(API_ENDPOINTS.UPLOAD.AVATAR, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error?.message || 'Failed to upload avatar');
+  }
+
+  return response.json();
+}
+
+// Upload cover photo
+export async function uploadCoverPhoto(file: File, token: string): Promise<UploadResponse> {
+  const formData = new FormData();
+  formData.append('cover', file);
+
+  const response = await fetch(API_ENDPOINTS.UPLOAD.COVER, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error?.message || 'Failed to upload cover photo');
   }
 
   return response.json();

@@ -10,17 +10,32 @@ const formatUserResponse = (user: {
   name: string;
   email: string;
   avatar: string | null;
+  coverPhoto?: string | null;
+  bio?: string | null;
+  location?: string | null;
+  occupation?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  interests?: string[];
   role: string;
   isVerified: boolean;
   createdAt: Date;
-}) => ({
+}, connectionsCount?: number) => ({
   id: user.id,
   name: user.name,
   email: user.email,
   avatar: user.avatar,
+  coverPhoto: user.coverPhoto || null,
+  bio: user.bio || null,
+  location: user.location || null,
+  occupation: user.occupation || null,
+  phone: user.phone || null,
+  website: user.website || null,
+  interests: user.interests || [],
   role: user.role,
   isVerified: user.isVerified,
   createdAt: user.createdAt.toISOString(),
+  ...(connectionsCount !== undefined && { connections: connectionsCount }),
 });
 
 export const getProfile = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -33,7 +48,12 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
       throw new AppError('User not found', 404, 'NOT_FOUND');
     }
 
-    res.json(formatUserResponse(user));
+    // Get connections count
+    const connectionsCount = await prisma.connection.count({
+      where: { userId: req.userId },
+    });
+
+    res.json(formatUserResponse(user, connectionsCount));
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
@@ -44,17 +64,29 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
 
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, avatar } = req.body;
+    const { name, avatar, coverPhoto, bio, location, occupation, phone, website, interests } = req.body;
 
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: {
         ...(name && { name }),
         ...(avatar !== undefined && { avatar }),
+        ...(coverPhoto !== undefined && { coverPhoto }),
+        ...(bio !== undefined && { bio }),
+        ...(location !== undefined && { location }),
+        ...(occupation !== undefined && { occupation }),
+        ...(phone !== undefined && { phone }),
+        ...(website !== undefined && { website }),
+        ...(interests !== undefined && { interests }),
       },
     });
 
-    res.json(formatUserResponse(user));
+    // Get connections count for response
+    const connectionsCount = await prisma.connection.count({
+      where: { userId: req.userId },
+    });
+
+    res.json(formatUserResponse(user, connectionsCount));
   } catch (error) {
     if (error instanceof AppError) {
       throw error;

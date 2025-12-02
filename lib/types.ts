@@ -14,6 +14,14 @@ export interface User {
   name: string
   email: string
   avatar?: string | null
+  coverPhoto?: string | null
+  bio?: string | null
+  location?: string | null
+  occupation?: string | null
+  phone?: string | null
+  website?: string | null
+  interests?: string[]
+  connections?: number
   role: UserRole
   isVerified: boolean
   createdAt: string

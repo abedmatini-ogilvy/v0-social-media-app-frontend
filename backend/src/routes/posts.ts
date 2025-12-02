@@ -34,6 +34,7 @@ const commentValidation = [
 
 // Routes - wrapped with asyncHandler
 router.get('/feed', asyncHandler(postController.getFeed));
+router.get('/my-posts', asyncHandler(postController.getMyPosts));
 router.post('/', validate(createPostValidation), asyncHandler(postController.createPost));
 router.get('/:postId', asyncHandler(postController.getPost));
 router.put('/:postId', validate(updatePostValidation), asyncHandler(postController.updatePost));

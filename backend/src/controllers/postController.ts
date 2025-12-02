@@ -125,6 +125,33 @@ export const getPublicFeed = async (req: Request, res: Response): Promise<void> 
   }
 };
 
+// Get current user's posts
+export const getMyPosts = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const posts = await prisma.post.findMany({
+      where: { authorId: req.userId },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+            role: true,
+            isVerified: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(posts.map(formatPostResponse));
+  } catch (error) {
+    throw new AppError('Failed to get user posts', 500, 'INTERNAL_ERROR');
+  }
+};
+
 export const createPost = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { content, image, location } = req.body;

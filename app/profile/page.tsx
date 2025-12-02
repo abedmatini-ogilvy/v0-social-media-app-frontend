@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Edit, MapPin, Briefcase, Calendar, Mail, Phone, Globe, Users, MessageCircle, Camera, Heart, MessageSquare, Share2, Loader2, ArrowLeft } from "lucide-react"
 import MobileHeader from "@/components/mobile-header"
 import MobileFooterNav from "@/components/mobile-footer-nav"
+import DesktopHeader from "@/components/desktop-header"
 import Link from "next/link"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -197,6 +198,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white dark:from-gray-900 dark:to-gray-950 pb-16 md:pb-0">
+      <DesktopHeader />
       <MobileHeader />
       <main className="container mx-auto px-4 py-4">
         <Link href="/" className="flex items-center text-purple-700 hover:text-purple-900 mb-4 md:hidden">
