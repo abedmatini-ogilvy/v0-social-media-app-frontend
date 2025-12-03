@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { BarChart3, Bell, ChevronDown, Flag, Home, Search, Settings, Shield, User, Users, Ban, Loader2, MoreHorizontal, Key, UserCheck, Trash2 } from "lucide-react"
+import { BarChart3, Bell, ChevronDown, Flag, Home, Search, Settings, Shield, User, Users, Ban, Loader2, MoreHorizontal, Key, UserCheck, Trash2, Calendar, MapPin, Clock } from "lucide-react"
 import Link from "next/link"
 import {
   DropdownMenu,
@@ -32,6 +32,7 @@ import {
   ReportStatus,
   ReportAction,
   AnnouncementPriority,
+  Event,
 } from "@/lib/types"
 import {
   getOverviewStats,
@@ -49,6 +50,13 @@ import {
   publishAnnouncement,
   deleteAnnouncement,
 } from "@/lib/admin-api-service"
+import {
+  getEvents,
+  adminCreateEvent,
+  adminUpdateEvent,
+  adminDeleteEvent,
+  type CreateEventData,
+} from "@/lib/api-service"
 
 export default function AdminDashboardPage() {
   const router = useRouter()
@@ -65,6 +73,9 @@ export default function AdminDashboardPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [reportFilter, setReportFilter] = useState<string>("all")
   
+  // Events state
+  const [events, setEvents] = useState<Event[]>([])
+  
   // Announcement form state
   const [newAnnouncement, setNewAnnouncement] = useState({
     title: "",
@@ -73,6 +84,16 @@ export default function AdminDashboardPage() {
     priority: "medium" as AnnouncementPriority,
     audience: "all",
   })
+
+  // Event form state
+  const [newEvent, setNewEvent] = useState<CreateEventData>({
+    title: "",
+    description: "",
+    date: "",
+    location: "",
+    organizer: "",
+  })
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null)
 
   // Check authentication and admin role
   useEffect(() => {
@@ -101,17 +122,19 @@ export default function AdminDashboardPage() {
     
     setLoading(true)
     try {
-      const [statsData, usersData, reportsData, announcementsData] = await Promise.all([
+      const [statsData, usersData, reportsData, announcementsData, eventsData] = await Promise.all([
         getOverviewStats(token),
         getAdminUsers(token, { limit: 50 }),
         getAdminReports(token, { limit: 50 }),
         getAdminAnnouncements(token, { limit: 50 }),
+        getEvents(),
       ])
       
       setStats(statsData)
       setUsers(usersData.users)
       setReports(reportsData.reports)
       setAnnouncements(announcementsData.announcements)
+      setEvents(eventsData)
     } catch (error) {
       console.error("Failed to fetch admin data:", error)
       toast.error("Failed to load admin data")
@@ -207,6 +230,51 @@ export default function AdminDashboardPage() {
       fetchData()
     } catch (error) {
       toast.error("Failed to delete announcement")
+    }
+  }
+
+  // Handle event actions
+  const handleCreateEvent = async () => {
+    if (!token || !newEvent.title || !newEvent.description || !newEvent.date || !newEvent.location || !newEvent.organizer) {
+      toast.error("All fields are required")
+      return
+    }
+    try {
+      await adminCreateEvent(newEvent, token)
+      toast.success("Event created successfully")
+      setNewEvent({ title: "", description: "", date: "", location: "", organizer: "" })
+      fetchData()
+    } catch (error) {
+      toast.error("Failed to create event")
+    }
+  }
+
+  const handleUpdateEvent = async () => {
+    if (!token || !editingEvent) return
+    try {
+      await adminUpdateEvent(editingEvent.id, {
+        title: editingEvent.title,
+        description: editingEvent.description,
+        date: editingEvent.date,
+        location: editingEvent.location,
+        organizer: editingEvent.organizer,
+      }, token)
+      toast.success("Event updated successfully")
+      setEditingEvent(null)
+      fetchData()
+    } catch (error) {
+      toast.error("Failed to update event")
+    }
+  }
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!token) return
+    try {
+      await adminDeleteEvent(eventId, token)
+      toast.success("Event deleted successfully")
+      fetchData()
+    } catch (error) {
+      toast.error("Failed to delete event")
     }
   }
 
@@ -331,6 +399,19 @@ export default function AdminDashboardPage() {
               >
                 <Bell className="h-5 w-5 mr-2" />
                 Announcements
+              </Button>
+
+              <Button
+                variant={activeTab === "events" ? "default" : "ghost"}
+                className={`w-full justify-start ${
+                  activeTab === "events"
+                    ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                    : ""
+                }`}
+                onClick={() => setActiveTab("events")}
+              >
+                <Calendar className="h-5 w-5 mr-2" />
+                Events
               </Button>
 
               <Button
@@ -1234,6 +1315,214 @@ export default function AdminDashboardPage() {
                                 variant="outline" 
                                 className="text-red-600"
                                 onClick={() => handleDeleteAnnouncement(announcement.id)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Events Tab */}
+            {activeTab === "events" && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h1 className="text-2xl font-bold">Events Management</h1>
+                  <Badge variant="outline" className="text-lg px-3 py-1">
+                    {events.length} Events
+                  </Badge>
+                </div>
+
+                {/* Create/Edit Event Form */}
+                <Card className="border-purple-100 dark:border-purple-900">
+                  <CardHeader>
+                    <CardTitle>{editingEvent ? "Edit Event" : "Create New Event"}</CardTitle>
+                    <CardDescription>
+                      {editingEvent ? "Update event details" : "Create community events for citizens to attend"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Event Title</label>
+                        <Input
+                          placeholder="Enter event title"
+                          className="border-purple-200 dark:border-purple-900"
+                          value={editingEvent ? editingEvent.title : newEvent.title}
+                          onChange={(e) => editingEvent 
+                            ? setEditingEvent({ ...editingEvent, title: e.target.value })
+                            : setNewEvent({ ...newEvent, title: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Date & Time</label>
+                        <Input
+                          type="datetime-local"
+                          className="border-purple-200 dark:border-purple-900"
+                          value={editingEvent 
+                            ? new Date(editingEvent.date).toISOString().slice(0, 16) 
+                            : newEvent.date
+                          }
+                          onChange={(e) => editingEvent 
+                            ? setEditingEvent({ ...editingEvent, date: e.target.value })
+                            : setNewEvent({ ...newEvent, date: e.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Description</label>
+                      <Textarea
+                        placeholder="Enter event description"
+                        className="min-h-[100px] border-purple-200 dark:border-purple-900"
+                        value={editingEvent ? editingEvent.description : newEvent.description}
+                        onChange={(e) => editingEvent 
+                          ? setEditingEvent({ ...editingEvent, description: e.target.value })
+                          : setNewEvent({ ...newEvent, description: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Location</label>
+                        <Input
+                          placeholder="Enter event location"
+                          className="border-purple-200 dark:border-purple-900"
+                          value={editingEvent ? editingEvent.location : newEvent.location}
+                          onChange={(e) => editingEvent 
+                            ? setEditingEvent({ ...editingEvent, location: e.target.value })
+                            : setNewEvent({ ...newEvent, location: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Organizer</label>
+                        <Input
+                          placeholder="Enter organizer name"
+                          className="border-purple-200 dark:border-purple-900"
+                          value={editingEvent ? editingEvent.organizer : newEvent.organizer}
+                          onChange={(e) => editingEvent 
+                            ? setEditingEvent({ ...editingEvent, organizer: e.target.value })
+                            : setNewEvent({ ...newEvent, organizer: e.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-end gap-2">
+                    {editingEvent ? (
+                      <>
+                        <Button 
+                          variant="outline"
+                          onClick={() => setEditingEvent(null)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                          onClick={handleUpdateEvent}
+                        >
+                          Update Event
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button 
+                          variant="outline"
+                          onClick={() => setNewEvent({ title: "", description: "", date: "", location: "", organizer: "" })}
+                        >
+                          Clear
+                        </Button>
+                        <Button 
+                          className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                          onClick={handleCreateEvent}
+                        >
+                          Create Event
+                        </Button>
+                      </>
+                    )}
+                  </CardFooter>
+                </Card>
+
+                {/* Events List */}
+                <Card className="border-purple-100 dark:border-purple-900">
+                  <CardHeader>
+                    <CardTitle>All Events</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {events.length === 0 ? (
+                      <div className="p-8 text-center">
+                        <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-500 dark:text-gray-400">No events yet</p>
+                        <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                          Create your first event above.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {events.map((event) => (
+                          <div key={event.id} className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <h3 className="font-medium text-lg">{event.title}</h3>
+                                <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-4 w-4" />
+                                    {new Date(event.date).toLocaleDateString("en-US", {
+                                      weekday: "short",
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="h-4 w-4" />
+                                    {event.location}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge 
+                                  className={
+                                    new Date(event.date) > new Date()
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-gray-100 text-gray-800"
+                                  }
+                                >
+                                  {new Date(event.date) > new Date() ? "Upcoming" : "Past"}
+                                </Badge>
+                                <Badge variant="outline">
+                                  {event.attendees} attendees
+                                </Badge>
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{event.description}</p>
+                            <p className="text-xs text-gray-500 mb-3">Organized by: {event.organizer}</p>
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => setEditingEvent(event)}
+                              >
+                                Edit
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="text-red-600 hover:bg-red-50"
+                                onClick={() => handleDeleteEvent(event.id)}
                               >
                                 Delete
                               </Button>

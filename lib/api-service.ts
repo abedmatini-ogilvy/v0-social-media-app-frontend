@@ -457,6 +457,48 @@ export async function getMyEvents(token: string): Promise<Event[]> {
   return apiRequest<Event[]>(API_ENDPOINTS.EVENTS.MY_EVENTS, "GET", undefined, token)
 }
 
+// ==================== ADMIN EVENTS API ====================
+
+export interface CreateEventData {
+  title: string
+  description: string
+  date: string
+  location: string
+  organizer: string
+}
+
+export async function adminCreateEvent(data: CreateEventData, token: string): Promise<Event> {
+  return apiRequest<Event>(`${API_BASE_URL}/admin/events`, "POST", data, token)
+}
+
+export async function adminUpdateEvent(eventId: string, data: Partial<CreateEventData>, token: string): Promise<Event> {
+  return apiRequest<Event>(`${API_BASE_URL}/admin/events/${eventId}`, "PUT", data, token)
+}
+
+export async function adminDeleteEvent(eventId: string, token: string): Promise<void> {
+  return apiRequest<void>(`${API_BASE_URL}/admin/events/${eventId}`, "DELETE", undefined, token)
+}
+
+export interface EventAttendee {
+  id: string
+  joinedAt: string
+  user: {
+    id: string
+    name: string
+    email: string
+    avatar?: string | null
+  }
+}
+
+export interface EventWithAttendees {
+  event: Event
+  attendees: EventAttendee[]
+}
+
+export async function adminGetEventAttendees(eventId: string, token: string): Promise<EventWithAttendees> {
+  return apiRequest<EventWithAttendees>(`${API_BASE_URL}/admin/events/${eventId}/attendees`, "GET", undefined, token)
+}
+
 // ==================== NOTIFICATIONS API ====================
 
 export async function getNotifications(token: string): Promise<Notification[]> {

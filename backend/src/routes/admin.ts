@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, requireAdmin } from '../middleware/auth';
+import { authenticate, requireAdmin } from '../middleware/auth.js';
 import {
   // User management
   getAllUsers,
@@ -26,7 +26,13 @@ import {
   getUserAnalytics,
   getPostAnalytics,
   getReportAnalytics,
-} from '../controllers/adminController';
+} from '../controllers/adminController.js';
+import {
+  createEvent,
+  updateEvent,
+  deleteEvent,
+  getEventAttendees,
+} from '../controllers/eventController.js';
 
 const router = Router();
 
@@ -70,5 +76,13 @@ router.get('/analytics/overview', getOverviewStats);
 router.get('/analytics/users', getUserAnalytics);
 router.get('/analytics/posts', getPostAnalytics);
 router.get('/analytics/reports', getReportAnalytics);
+
+// ============================================
+// EVENTS ROUTES
+// ============================================
+router.post('/events', createEvent);
+router.put('/events/:eventId', updateEvent);
+router.delete('/events/:eventId', deleteEvent);
+router.get('/events/:eventId/attendees', getEventAttendees);
 
 export default router;

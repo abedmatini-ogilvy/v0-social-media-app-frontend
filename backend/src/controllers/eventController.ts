@@ -133,3 +133,140 @@ export const getMyEvents = async (req: AuthRequest, res: Response): Promise<void
     throw new AppError('Failed to get my events', 500, 'INTERNAL_ERROR');
   }
 };
+
+// ==================== ADMIN EVENT MANAGEMENT ====================
+
+export const createEvent = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { title, description, date, location, organizer } = req.body;
+
+    if (!title || !description || !date || !location || !organizer) {
+      throw new AppError('All fields are required', 400, 'VALIDATION_ERROR');
+    }
+
+    const event = await prisma.event.create({
+      data: {
+        title,
+        description,
+        date: new Date(date),
+        location,
+        organizer,
+        attendees: 0,
+      },
+    });
+
+    res.status(201).json(formatEventResponse(event));
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError('Failed to create event', 500, 'INTERNAL_ERROR');
+  }
+};
+
+export const updateEvent = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { eventId } = req.params;
+    const { title, description, date, location, organizer } = req.body;
+
+    const existingEvent = await prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!existingEvent) {
+      throw new AppError('Event not found', 404, 'NOT_FOUND');
+    }
+
+    const event = await prisma.event.update({
+      where: { id: eventId },
+      data: {
+        ...(title && { title }),
+        ...(description && { description }),
+        ...(date && { date: new Date(date) }),
+        ...(location && { location }),
+        ...(organizer && { organizer }),
+      },
+    });
+
+    res.json(formatEventResponse(event));
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError('Failed to update event', 500, 'INTERNAL_ERROR');
+  }
+};
+
+export const deleteEvent = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { eventId } = req.params;
+
+    const existingEvent = await prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!existingEvent) {
+      throw new AppError('Event not found', 404, 'NOT_FOUND');
+    }
+
+    // Delete all attendees first
+    await prisma.eventAttendee.deleteMany({
+      where: { eventId },
+    });
+
+    // Delete the event
+    await prisma.event.delete({
+      where: { id: eventId },
+    });
+
+    res.json({ message: 'Event deleted successfully' });
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError('Failed to delete event', 500, 'INTERNAL_ERROR');
+  }
+};
+
+export const getEventAttendees = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { eventId } = req.params;
+
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new AppError('Event not found', 404, 'NOT_FOUND');
+    }
+
+    const attendees = await prisma.eventAttendee.findMany({
+      where: { eventId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: { joinedAt: 'desc' },
+    });
+
+    res.json({
+      event: formatEventResponse(event),
+      attendees: attendees.map((a) => ({
+        id: a.id,
+        joinedAt: a.joinedAt.toISOString(),
+        user: a.user,
+      })),
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError('Failed to get event attendees', 500, 'INTERNAL_ERROR');
+  }
+};

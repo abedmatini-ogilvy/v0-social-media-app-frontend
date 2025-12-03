@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -8,54 +8,83 @@ import { Badge } from "@/components/ui/badge"
 import { FileText, Briefcase, Calendar, Users, UserPlus, ChevronRight } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
+import { getSchemes, getJobs, getEvents, getSuggestedConnections } from "@/lib/api-service"
+import { getToken } from "@/lib/auth-service"
+import type { Scheme, Job, Event, User } from "@/lib/types"
 
-// Sample data for suggested connections
-const suggestedConnections = [
-  {
-    id: 1,
-    name: "Amit Patel",
-    role: "Urban Planner",
-    avatar: "/placeholder.svg?height=40&width=40",
-    mutualConnections: 5,
-  },
-  {
-    id: 2,
-    name: "Neha Singh",
-    role: "Community Organizer",
-    avatar: "/placeholder.svg?height=40&width=40",
-    mutualConnections: 3,
-  },
-  {
-    id: 3,
-    name: "Rajesh Kumar",
-    role: "Local Business Owner",
-    avatar: "/placeholder.svg?height=40&width=40",
-    mutualConnections: 2,
-  },
+// Fallback data
+const fallbackConnections = [
+  { id: "1", name: "Amit Patel", role: "Urban Planner", avatar: null, mutualConnections: 5 },
+  { id: "2", name: "Neha Singh", role: "Community Organizer", avatar: null, mutualConnections: 3 },
+  { id: "3", name: "Rajesh Kumar", role: "Local Business Owner", avatar: null, mutualConnections: 2 },
 ]
 
-// Sample data for schemes
-const schemes = [
-  { title: "PM Kisan Samman Nidhi", deadline: "June 30, 2023", isNew: true },
-  { title: "Digital Literacy Program", deadline: "Open", isNew: false },
-  { title: "Skill India Initiative", deadline: "July 15, 2023", isNew: true },
+const fallbackSchemes = [
+  { id: "1", title: "PM Kisan Samman Nidhi", deadline: new Date().toISOString(), isNew: true },
+  { id: "2", title: "Digital Literacy Program", deadline: new Date().toISOString(), isNew: false },
 ]
 
-// Sample data for jobs
-const jobs = [
-  { title: "Digital Marketing Assistant", company: "TechSolutions Ltd", location: "Mumbai", isNew: true },
-  { title: "Community Manager", company: "Local Government", location: "Delhi NCR", isNew: true },
-  { title: "Data Entry Operator", company: "Public Services", location: "Bangalore", isNew: false },
+const fallbackJobs = [
+  { id: "1", title: "Digital Marketing Assistant", company: "TechSolutions Ltd", location: "Mumbai", isNew: true },
+  { id: "2", title: "Community Manager", company: "Local Government", location: "Delhi NCR", isNew: true },
 ]
 
-// Sample data for events
-const events = [
-  { title: "Digital Literacy Workshop", date: "June 15, 2023", location: "Community Center, Sector 15" },
-  { title: "Public Hearing on Infrastructure", date: "June 20, 2023", location: "Municipal Hall" },
+const fallbackEvents = [
+  { id: "1", title: "Digital Literacy Workshop", date: new Date().toISOString(), location: "Community Center" },
+  { id: "2", title: "Public Hearing", date: new Date().toISOString(), location: "Municipal Hall" },
 ]
+
+function formatDeadline(dateString: string): string {
+  const date = new Date(dateString)
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
+function formatEventDate(dateString: string): string {
+  const date = new Date(dateString)
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
 
 export default function MobileTabs() {
   const [activeTab, setActiveTab] = useState("schemes")
+  const [schemes, setSchemes] = useState<Scheme[]>([])
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [events, setEvents] = useState<Event[]>([])
+  const [suggestedConnections, setSuggestedConnections] = useState<any[]>([])
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [schemesData, jobsData, eventsData] = await Promise.all([
+        getSchemes().catch(() => fallbackSchemes),
+        getJobs().catch(() => fallbackJobs),
+        getEvents().catch(() => fallbackEvents),
+      ])
+      
+      setSchemes(schemesData.slice(0, 3) as Scheme[])
+      setJobs(jobsData.slice(0, 3) as Job[])
+      setEvents(eventsData.slice(0, 2) as Event[])
+
+      const token = getToken()
+      if (token) {
+        try {
+          const suggested = await getSuggestedConnections(token)
+          setSuggestedConnections(suggested.slice(0, 3))
+        } catch {
+          setSuggestedConnections(fallbackConnections)
+        }
+      } else {
+        setSuggestedConnections(fallbackConnections)
+      }
+    } catch {
+      setSchemes(fallbackSchemes as Scheme[])
+      setJobs(fallbackJobs as Job[])
+      setEvents(fallbackEvents as Event[])
+      setSuggestedConnections(fallbackConnections)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   return (
     <div className="md:hidden">
@@ -96,12 +125,12 @@ export default function MobileTabs() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 pt-4">
-              {schemes.map((scheme, index) => (
-                <div key={index} className="border-b border-gray-100 dark:border-gray-800 pb-2 last:border-0 last:pb-0">
+              {schemes.map((scheme) => (
+                <div key={scheme.id} className="border-b border-gray-100 dark:border-gray-800 pb-2 last:border-0 last:pb-0">
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-medium text-sm">{scheme.title}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Deadline: {scheme.deadline}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Deadline: {formatDeadline(scheme.deadline)}</p>
                     </div>
                     {scheme.isNew && (
                       <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 text-xs border-0">
@@ -131,8 +160,8 @@ export default function MobileTabs() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 pt-4">
-              {jobs.map((job, index) => (
-                <div key={index} className="border-b border-gray-100 dark:border-gray-800 pb-2 last:border-0 last:pb-0">
+              {jobs.map((job) => (
+                <div key={job.id} className="border-b border-gray-100 dark:border-gray-800 pb-2 last:border-0 last:pb-0">
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-medium text-sm">{job.title}</p>
@@ -168,10 +197,10 @@ export default function MobileTabs() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 pt-4">
-              {events.map((event, index) => (
-                <div key={index} className="border-b border-gray-100 dark:border-gray-800 pb-2 last:border-0 last:pb-0">
+              {events.map((event) => (
+                <div key={event.id} className="border-b border-gray-100 dark:border-gray-800 pb-2 last:border-0 last:pb-0">
                   <p className="font-medium text-sm">{event.title}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{event.date}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{formatEventDate(event.date)}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{event.location}</p>
                 </div>
               ))}
