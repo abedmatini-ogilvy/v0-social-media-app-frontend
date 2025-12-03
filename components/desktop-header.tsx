@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import LanguageSwitcher from "@/components/language-switcher"
 import { Bell, Search, LogOut } from "lucide-react"
@@ -19,15 +20,17 @@ export default function DesktopHeader() {
   const { user, isLoggedIn, logout, isLoading } = useAuth()
 
   return (
-    <header className="sticky top-0 z-50 hidden md:flex items-center justify-between bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 shadow-sm">
+    <header className="sticky top-0 z-50 md:flex items-center justify-between bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 shadow-sm">
       <div className="flex items-center">
         <Link href="/" className="flex items-center">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center mr-2">
-            <span className="text-white font-bold">CC</span>
-          </div>
-          <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-            CivicConnect
-          </h1>
+          <Image
+            src="/logo.png"
+            alt="CivicConnect"
+            width={180}
+            height={33}
+            className="h-8 w-auto"
+            priority
+          />
         </Link>
       </div>
 

@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -9,12 +10,14 @@ export default function MobileHeader() {
   return (
     <header className="sticky top-0 z-40 flex md:hidden items-center justify-between bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 shadow-sm">
       <Link href="/" className="flex items-center">
-        <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center mr-2">
-          <span className="text-white font-bold">CC</span>
-        </div>
-        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-          CivicConnect
-        </h1>
+        <Image
+          src="/logo.png"
+          alt="CivicConnect"
+          width={150}
+          height={28}
+          className="h-7 w-auto"
+          priority
+        />
       </Link>
 
       <div className="flex items-center gap-2">
@@ -29,12 +32,13 @@ export default function MobileHeader() {
           <SheetContent side="right" className="w-[85%] sm:w-[350px] pt-10 border-l-purple-200">
             <SheetHeader className="text-left mb-6">
               <SheetTitle className="flex items-center">
-                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center mr-2">
-                  <span className="text-white font-bold">CC</span>
-                </div>
-                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-                  CivicConnect
-                </span>
+                <Image
+                  src="/logo.png"
+                  alt="CivicConnect"
+                  width={150}
+                  height={28}
+                  className="h-7 w-auto"
+                />
               </SheetTitle>
             </SheetHeader>
 

@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Button } from "@/components/ui/button"
 import { Menu } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 
@@ -76,12 +77,13 @@ export default function MobileNav() {
       <SheetContent side="right" className="w-[85%] sm:w-[350px] pt-10 border-l-purple-200">
         <SheetHeader className="text-left mb-6">
           <SheetTitle className="flex items-center">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center mr-2">
-              <span className="text-white font-bold">CC</span>
-            </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-              CivicConnect
-            </span>
+            <Image
+              src="/logo.png"
+              alt="CivicConnect"
+              width={150}
+              height={28}
+              className="h-7 w-auto"
+            />
           </SheetTitle>
         </SheetHeader>
 
