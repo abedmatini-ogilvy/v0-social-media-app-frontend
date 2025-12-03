@@ -55,7 +55,9 @@ import {
   adminCreateEvent,
   adminUpdateEvent,
   adminDeleteEvent,
+  adminGetEventAttendees,
   type CreateEventData,
+  type EventAttendee,
 } from "@/lib/api-service"
 
 export default function AdminDashboardPage() {
@@ -94,6 +96,8 @@ export default function AdminDashboardPage() {
     organizer: "",
   })
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
+  const [viewingAttendees, setViewingAttendees] = useState<{ eventId: string; eventTitle: string; attendees: EventAttendee[] } | null>(null)
+  const [loadingAttendees, setLoadingAttendees] = useState(false)
 
   // Check authentication and admin role
   useEffect(() => {
@@ -275,6 +279,19 @@ export default function AdminDashboardPage() {
       fetchData()
     } catch (error) {
       toast.error("Failed to delete event")
+    }
+  }
+
+  const handleViewAttendees = async (eventId: string, eventTitle: string) => {
+    if (!token) return
+    setLoadingAttendees(true)
+    try {
+      const data = await adminGetEventAttendees(eventId, token)
+      setViewingAttendees({ eventId, eventTitle, attendees: data.attendees })
+    } catch (error) {
+      toast.error("Failed to fetch attendees")
+    } finally {
+      setLoadingAttendees(false)
     }
   }
 
@@ -1514,6 +1531,15 @@ export default function AdminDashboardPage() {
                               <Button 
                                 size="sm" 
                                 variant="outline"
+                                onClick={() => handleViewAttendees(event.id, event.title)}
+                                disabled={loadingAttendees}
+                              >
+                                <Users className="h-4 w-4 mr-1" />
+                                View Attendees ({event.attendees})
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
                                 onClick={() => setEditingEvent(event)}
                               >
                                 Edit
@@ -1533,6 +1559,61 @@ export default function AdminDashboardPage() {
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Attendees Modal/Panel */}
+                {viewingAttendees && (
+                  <Card className="border-purple-100 dark:border-purple-900">
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <div>
+                        <CardTitle>Attendees for "{viewingAttendees.eventTitle}"</CardTitle>
+                        <CardDescription>{viewingAttendees.attendees.length} registered attendees</CardDescription>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setViewingAttendees(null)}
+                      >
+                        Close
+                      </Button>
+                    </CardHeader>
+                    <CardContent>
+                      {viewingAttendees.attendees.length === 0 ? (
+                        <div className="p-8 text-center">
+                          <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                          <p className="text-gray-500 dark:text-gray-400">No attendees yet</p>
+                          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                            No one has registered for this event.
+                          </p>
+                        </div>
+                      ) : (
+                        <ScrollArea className="h-[300px]">
+                          <div className="space-y-3">
+                            {viewingAttendees.attendees.map((attendee) => (
+                              <div key={attendee.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                                <Avatar className="h-10 w-10">
+                                  <AvatarImage src={attendee.user.avatar || "/placeholder.svg"} alt={attendee.user.name} />
+                                  <AvatarFallback>{attendee.user.name[0]}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                  <p className="font-medium">{attendee.user.name}</p>
+                                  <p className="text-sm text-gray-500">@{attendee.user.username}</p>
+                                </div>
+                                <div className="text-right">
+                                  <Badge variant="outline" className="text-xs">
+                                    {attendee.status}
+                                  </Badge>
+                                  <p className="text-xs text-gray-400 mt-1">
+                                    Registered {new Date(attendee.registeredAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             )}
 
