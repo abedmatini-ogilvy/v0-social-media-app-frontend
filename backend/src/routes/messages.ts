@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { validate } from '../middleware/validate.js';
 import { authenticate } from '../middleware/auth.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 import * as messageController from '../controllers/messageController.js';
 
 const router = Router();
@@ -15,9 +16,9 @@ const sendMessageValidation = [
   body('content').trim().notEmpty().withMessage('Message content is required'),
 ];
 
-// Routes
-router.get('/conversations', messageController.getConversations);
-router.get('/conversations/:conversationId', messageController.getConversation);
-router.post('/', validate(sendMessageValidation), messageController.sendMessage);
+// Routes - wrapped in asyncHandler to properly catch async errors
+router.get('/conversations', asyncHandler(messageController.getConversations));
+router.get('/conversations/:conversationId', asyncHandler(messageController.getConversation));
+router.post('/', validate(sendMessageValidation), asyncHandler(messageController.sendMessage));
 
 export default router;

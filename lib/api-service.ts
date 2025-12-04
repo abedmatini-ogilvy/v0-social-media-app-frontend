@@ -519,8 +519,14 @@ export async function getConversations(token: string): Promise<Conversation[]> {
   return apiRequest<Conversation[]>(API_ENDPOINTS.MESSAGES.CONVERSATIONS, "GET", undefined, token)
 }
 
-export async function getConversation(conversationId: string, token: string): Promise<Message[]> {
-  return apiRequest<Message[]>(API_ENDPOINTS.MESSAGES.CONVERSATION(conversationId), "GET", undefined, token)
+export interface ConversationDetail {
+  id: string
+  user: { id: string; name: string; avatar: string | null }
+  messages: Message[]
+}
+
+export async function getConversation(conversationId: string, token: string): Promise<ConversationDetail> {
+  return apiRequest<ConversationDetail>(API_ENDPOINTS.MESSAGES.CONVERSATION(conversationId), "GET", undefined, token)
 }
 
 export async function sendMessage(receiverId: string, content: string, token: string): Promise<Message> {

@@ -1,138 +1,173 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import Link from "next/link"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, Loader2 } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useAuth } from "@/components/auth-provider"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from "next/link";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import Image from "next/image";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useAuth } from "@/components/auth-provider";
 
 export default function SignupPage() {
-  const router = useRouter()
-  const { register, isLoading } = useAuth()
-  
+  const router = useRouter();
+  const { register, isLoading } = useAuth();
+
   // Citizen form state
-  const [citizenFirstName, setCitizenFirstName] = useState("")
-  const [citizenLastName, setCitizenLastName] = useState("")
-  const [citizenEmail, setCitizenEmail] = useState("")
-  const [citizenMobile, setCitizenMobile] = useState("")
-  const [citizenState, setCitizenState] = useState("")
-  const [citizenPassword, setCitizenPassword] = useState("")
-  const [citizenTerms, setCitizenTerms] = useState(false)
-  const [citizenError, setCitizenError] = useState("")
-  
+  const [citizenFirstName, setCitizenFirstName] = useState("");
+  const [citizenLastName, setCitizenLastName] = useState("");
+  const [citizenEmail, setCitizenEmail] = useState("");
+  const [citizenMobile, setCitizenMobile] = useState("");
+  const [citizenState, setCitizenState] = useState("");
+  const [citizenPassword, setCitizenPassword] = useState("");
+  const [citizenTerms, setCitizenTerms] = useState(false);
+  const [citizenError, setCitizenError] = useState("");
+
   // Official form state
-  const [officialFirstName, setOfficialFirstName] = useState("")
-  const [officialLastName, setOfficialLastName] = useState("")
-  const [officialEmail, setOfficialEmail] = useState("")
-  const [officialDepartment, setOfficialDepartment] = useState("")
-  const [officialEmployeeId, setOfficialEmployeeId] = useState("")
-  const [officialPassword, setOfficialPassword] = useState("")
-  const [officialTerms, setOfficialTerms] = useState(false)
-  const [officialError, setOfficialError] = useState("")
+  const [officialFirstName, setOfficialFirstName] = useState("");
+  const [officialLastName, setOfficialLastName] = useState("");
+  const [officialEmail, setOfficialEmail] = useState("");
+  const [officialDepartment, setOfficialDepartment] = useState("");
+  const [officialEmployeeId, setOfficialEmployeeId] = useState("");
+  const [officialPassword, setOfficialPassword] = useState("");
+  const [officialTerms, setOfficialTerms] = useState(false);
+  const [officialError, setOfficialError] = useState("");
 
   const handleCitizenSignup = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setCitizenError("")
-    
-    if (!citizenFirstName.trim() || !citizenLastName.trim() || !citizenEmail.trim() || !citizenPassword.trim()) {
-      setCitizenError("Please fill in all required fields")
-      return
+    e.preventDefault();
+    setCitizenError("");
+
+    if (
+      !citizenFirstName.trim() ||
+      !citizenLastName.trim() ||
+      !citizenEmail.trim() ||
+      !citizenPassword.trim()
+    ) {
+      setCitizenError("Please fill in all required fields");
+      return;
     }
-    
+
     if (!citizenTerms) {
-      setCitizenError("Please accept the Terms of Service and Privacy Policy")
-      return
+      setCitizenError("Please accept the Terms of Service and Privacy Policy");
+      return;
     }
-    
+
     if (citizenPassword.length < 8) {
-      setCitizenError("Password must be at least 8 characters")
-      return
+      setCitizenError("Password must be at least 8 characters");
+      return;
     }
-    
+
     // Basic password strength check
-    const hasUpperCase = /[A-Z]/.test(citizenPassword)
-    const hasLowerCase = /[a-z]/.test(citizenPassword)
-    const hasNumbers = /\d/.test(citizenPassword)
+    const hasUpperCase = /[A-Z]/.test(citizenPassword);
+    const hasLowerCase = /[a-z]/.test(citizenPassword);
+    const hasNumbers = /\d/.test(citizenPassword);
     if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
-      setCitizenError("Password must contain uppercase, lowercase, and numbers")
-      return
+      setCitizenError(
+        "Password must contain uppercase, lowercase, and numbers"
+      );
+      return;
     }
-    
+
     const success = await register({
       name: `${citizenFirstName.trim()} ${citizenLastName.trim()}`,
       email: citizenEmail.trim(),
       password: citizenPassword,
       role: "citizen",
-    })
-    
+    });
+
     if (success) {
-      router.push("/")
+      router.push("/");
     }
-  }
+  };
 
   const handleOfficialSignup = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setOfficialError("")
-    
-    if (!officialFirstName.trim() || !officialLastName.trim() || !officialEmail.trim() || !officialPassword.trim()) {
-      setOfficialError("Please fill in all required fields")
-      return
+    e.preventDefault();
+    setOfficialError("");
+
+    if (
+      !officialFirstName.trim() ||
+      !officialLastName.trim() ||
+      !officialEmail.trim() ||
+      !officialPassword.trim()
+    ) {
+      setOfficialError("Please fill in all required fields");
+      return;
     }
-    
+
     if (!officialTerms) {
-      setOfficialError("Please accept the Terms of Service and Privacy Policy")
-      return
+      setOfficialError("Please accept the Terms of Service and Privacy Policy");
+      return;
     }
-    
+
     if (officialPassword.length < 8) {
-      setOfficialError("Password must be at least 8 characters")
-      return
+      setOfficialError("Password must be at least 8 characters");
+      return;
     }
-    
+
     // Basic password strength check
-    const hasUpperCase = /[A-Z]/.test(officialPassword)
-    const hasLowerCase = /[a-z]/.test(officialPassword)
-    const hasNumbers = /\d/.test(officialPassword)
+    const hasUpperCase = /[A-Z]/.test(officialPassword);
+    const hasLowerCase = /[a-z]/.test(officialPassword);
+    const hasNumbers = /\d/.test(officialPassword);
     if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
-      setOfficialError("Password must contain uppercase, lowercase, and numbers")
-      return
+      setOfficialError(
+        "Password must contain uppercase, lowercase, and numbers"
+      );
+      return;
     }
-    
+
     const success = await register({
       name: `${officialFirstName.trim()} ${officialLastName.trim()}`,
       email: officialEmail.trim(),
       password: officialPassword,
       role: "official",
-    })
-    
+    });
+
     if (success) {
-      router.push("/")
+      router.push("/");
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-purple-50 to-white p-4">
-      <Link href="/" className="absolute top-4 left-4 flex items-center text-purple-700 hover:text-purple-900">
+      <Link
+        href="/"
+        className="absolute top-4 left-4 flex items-center text-purple-700 hover:text-purple-900"
+      >
         <ArrowLeft className="h-4 w-4 mr-1" />
         <span>Back to Home</span>
       </Link>
 
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center mx-auto mb-2">
-            <span className="text-white font-bold text-xl">CC</span>
-          </div>
-          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-            CivicConnect
-          </h1>
-          <p className="text-gray-500 mt-1">Join your community today</p>
+          <Link href="/" className="inline-block">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={200}
+              height={50}
+              className="h-12 w-auto mx-auto"
+              priority
+            />
+          </Link>
+          <p className="text-gray-500 mt-2">Create your account</p>
         </div>
 
         <Tabs defaultValue="citizen" className="w-full">
@@ -156,7 +191,9 @@ export default function SignupPage() {
               <form onSubmit={handleCitizenSignup}>
                 <CardHeader>
                   <CardTitle>Create Citizen Account</CardTitle>
-                  <CardDescription>Enter your details to create your account</CardDescription>
+                  <CardDescription>
+                    Enter your details to create your account
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {citizenError && (
@@ -167,9 +204,9 @@ export default function SignupPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="first-name">First Name</Label>
-                      <Input 
-                        id="first-name" 
-                        placeholder="First name" 
+                      <Input
+                        id="first-name"
+                        placeholder="First name"
                         className="border-purple-200"
                         value={citizenFirstName}
                         onChange={(e) => setCitizenFirstName(e.target.value)}
@@ -179,9 +216,9 @@ export default function SignupPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="last-name">Last Name</Label>
-                      <Input 
-                        id="last-name" 
-                        placeholder="Last name" 
+                      <Input
+                        id="last-name"
+                        placeholder="Last name"
                         className="border-purple-200"
                         value={citizenLastName}
                         onChange={(e) => setCitizenLastName(e.target.value)}
@@ -193,10 +230,10 @@ export default function SignupPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input 
-                      id="email" 
-                      type="email" 
-                      placeholder="Enter your email" 
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
                       className="border-purple-200"
                       value={citizenEmail}
                       onChange={(e) => setCitizenEmail(e.target.value)}
@@ -207,10 +244,10 @@ export default function SignupPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="mobile">Mobile Number</Label>
-                    <Input 
-                      id="mobile" 
-                      type="tel" 
-                      placeholder="Enter your mobile number" 
+                    <Input
+                      id="mobile"
+                      type="tel"
+                      placeholder="Enter your mobile number"
                       className="border-purple-200"
                       value={citizenMobile}
                       onChange={(e) => setCitizenMobile(e.target.value)}
@@ -220,7 +257,11 @@ export default function SignupPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="state">State</Label>
-                    <Select value={citizenState} onValueChange={setCitizenState} disabled={isLoading}>
+                    <Select
+                      value={citizenState}
+                      onValueChange={setCitizenState}
+                      disabled={isLoading}
+                    >
                       <SelectTrigger className="border-purple-200">
                         <SelectValue placeholder="Select your state" />
                       </SelectTrigger>
@@ -282,10 +323,10 @@ export default function SignupPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
-                    <Input 
-                      id="password" 
-                      type="password" 
-                      placeholder="Create a password (min 6 characters)" 
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Create a password (min 6 characters)"
                       className="border-purple-200"
                       value={citizenPassword}
                       onChange={(e) => setCitizenPassword(e.target.value)}
@@ -296,26 +337,34 @@ export default function SignupPage() {
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Checkbox 
+                    <Checkbox
                       id="terms"
                       checked={citizenTerms}
-                      onCheckedChange={(checked) => setCitizenTerms(checked === true)}
+                      onCheckedChange={(checked) =>
+                        setCitizenTerms(checked === true)
+                      }
                       disabled={isLoading}
                     />
                     <Label htmlFor="terms" className="text-xs font-normal">
                       I agree to the{" "}
-                      <Link href="/terms" className="text-purple-700 hover:text-purple-900">
+                      <Link
+                        href="/terms"
+                        className="text-purple-700 hover:text-purple-900"
+                      >
                         Terms of Service
                       </Link>{" "}
                       and{" "}
-                      <Link href="/privacy" className="text-purple-700 hover:text-purple-900">
+                      <Link
+                        href="/privacy"
+                        className="text-purple-700 hover:text-purple-900"
+                      >
                         Privacy Policy
                       </Link>
                     </Label>
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col space-y-4">
-                  <Button 
+                  <Button
                     type="submit"
                     className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                     disabled={isLoading}
@@ -331,7 +380,10 @@ export default function SignupPage() {
                   </Button>
                   <div className="text-center text-sm">
                     Already have an account?{" "}
-                    <Link href="/login" className="text-purple-700 hover:text-purple-900 font-medium">
+                    <Link
+                      href="/login"
+                      className="text-purple-700 hover:text-purple-900 font-medium"
+                    >
                       Log in
                     </Link>
                   </div>
@@ -345,7 +397,9 @@ export default function SignupPage() {
               <form onSubmit={handleOfficialSignup}>
                 <CardHeader>
                   <CardTitle>Government Official Registration</CardTitle>
-                  <CardDescription>Create an account with official verification</CardDescription>
+                  <CardDescription>
+                    Create an account with official verification
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {officialError && (
@@ -356,9 +410,9 @@ export default function SignupPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="official-first-name">First Name</Label>
-                      <Input 
-                        id="official-first-name" 
-                        placeholder="First name" 
+                      <Input
+                        id="official-first-name"
+                        placeholder="First name"
                         className="border-purple-200"
                         value={officialFirstName}
                         onChange={(e) => setOfficialFirstName(e.target.value)}
@@ -368,9 +422,9 @@ export default function SignupPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="official-last-name">Last Name</Label>
-                      <Input 
-                        id="official-last-name" 
-                        placeholder="Last name" 
+                      <Input
+                        id="official-last-name"
+                        placeholder="Last name"
                         className="border-purple-200"
                         value={officialLastName}
                         onChange={(e) => setOfficialLastName(e.target.value)}
@@ -396,7 +450,11 @@ export default function SignupPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="department">Department</Label>
-                    <Select value={officialDepartment} onValueChange={setOfficialDepartment} disabled={isLoading}>
+                    <Select
+                      value={officialDepartment}
+                      onValueChange={setOfficialDepartment}
+                      disabled={isLoading}
+                    >
                       <SelectTrigger className="border-purple-200">
                         <SelectValue placeholder="Select your department" />
                       </SelectTrigger>
@@ -404,21 +462,29 @@ export default function SignupPage() {
                         <SelectItem value="agriculture">Agriculture</SelectItem>
                         <SelectItem value="education">Education</SelectItem>
                         <SelectItem value="health">Health</SelectItem>
-                        <SelectItem value="home-affairs">Home Affairs</SelectItem>
-                        <SelectItem value="municipal">Municipal Corporation</SelectItem>
+                        <SelectItem value="home-affairs">
+                          Home Affairs
+                        </SelectItem>
+                        <SelectItem value="municipal">
+                          Municipal Corporation
+                        </SelectItem>
                         <SelectItem value="police">Police</SelectItem>
                         <SelectItem value="revenue">Revenue</SelectItem>
-                        <SelectItem value="rural-development">Rural Development</SelectItem>
-                        <SelectItem value="urban-development">Urban Development</SelectItem>
+                        <SelectItem value="rural-development">
+                          Rural Development
+                        </SelectItem>
+                        <SelectItem value="urban-development">
+                          Urban Development
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="employee-id">Employee ID</Label>
-                    <Input 
-                      id="employee-id" 
-                      placeholder="Enter your employee ID" 
+                    <Input
+                      id="employee-id"
+                      placeholder="Enter your employee ID"
                       className="border-purple-200"
                       value={officialEmployeeId}
                       onChange={(e) => setOfficialEmployeeId(e.target.value)}
@@ -442,19 +508,30 @@ export default function SignupPage() {
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Checkbox 
+                    <Checkbox
                       id="official-terms"
                       checked={officialTerms}
-                      onCheckedChange={(checked) => setOfficialTerms(checked === true)}
+                      onCheckedChange={(checked) =>
+                        setOfficialTerms(checked === true)
+                      }
                       disabled={isLoading}
                     />
-                    <Label htmlFor="official-terms" className="text-xs font-normal">
+                    <Label
+                      htmlFor="official-terms"
+                      className="text-xs font-normal"
+                    >
                       I agree to the{" "}
-                      <Link href="/terms" className="text-purple-700 hover:text-purple-900">
+                      <Link
+                        href="/terms"
+                        className="text-purple-700 hover:text-purple-900"
+                      >
                         Terms of Service
                       </Link>{" "}
                       and{" "}
-                      <Link href="/privacy" className="text-purple-700 hover:text-purple-900">
+                      <Link
+                        href="/privacy"
+                        className="text-purple-700 hover:text-purple-900"
+                      >
                         Privacy Policy
                       </Link>
                     </Label>
@@ -462,13 +539,14 @@ export default function SignupPage() {
 
                   <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
                     <p className="text-xs text-blue-700">
-                      <strong>Note:</strong> Official accounts require verification through DigiLocker or Aadhaar. You
-                      will be prompted to complete verification after registration.
+                      <strong>Note:</strong> Official accounts require
+                      verification through DigiLocker or Aadhaar. You will be
+                      prompted to complete verification after registration.
                     </p>
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col space-y-4">
-                  <Button 
+                  <Button
                     type="submit"
                     className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                     disabled={isLoading}
@@ -484,7 +562,10 @@ export default function SignupPage() {
                   </Button>
                   <div className="text-center text-sm">
                     Already have an account?{" "}
-                    <Link href="/login" className="text-purple-700 hover:text-purple-900 font-medium">
+                    <Link
+                      href="/login"
+                      className="text-purple-700 hover:text-purple-900 font-medium"
+                    >
                       Log in
                     </Link>
                   </div>
@@ -495,5 +576,5 @@ export default function SignupPage() {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }

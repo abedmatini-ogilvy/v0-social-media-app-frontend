@@ -1,17 +1,23 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Button } from "@/components/ui/button"
-import { Menu } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
+import { useState } from "react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Menu } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 export default function MobileNav() {
-  const pathname = usePathname()
-  const [open, setOpen] = useState(false)
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
 
   const routes = [
     {
@@ -64,7 +70,7 @@ export default function MobileNav() {
       label: "Settings",
       active: pathname === "/settings",
     },
-  ]
+  ];
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -74,12 +80,15 @@ export default function MobileNav() {
           <span className="sr-only">Open menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-[85%] sm:w-[350px] pt-10 border-l-purple-200">
+      <SheetContent
+        side="right"
+        className="w-[85%] sm:w-[350px] pt-10 border-l-purple-200"
+      >
         <SheetHeader className="text-left mb-6">
           <SheetTitle className="flex items-center">
             <Image
               src="/logo.png"
-              alt="CivicConnect"
+              alt="More & More Network"
               width={150}
               height={28}
               className="h-7 w-auto"
@@ -97,7 +106,7 @@ export default function MobileNav() {
                 "block py-3 px-2 text-sm rounded-md",
                 route.active
                   ? "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400 font-medium"
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800",
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
               )}
             >
               {route.label}
@@ -123,5 +132,5 @@ export default function MobileNav() {
         </div>
       </SheetContent>
     </Sheet>
-  )
+  );
 }

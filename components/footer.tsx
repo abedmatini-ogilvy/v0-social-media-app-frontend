@@ -1,5 +1,12 @@
-import Link from "next/link"
-import { Facebook, Twitter, Instagram, Youtube, Mail, Phone } from "lucide-react"
+import Link from "next/link";
+import {
+  Facebook,
+  Twitter,
+  Instagram,
+  Youtube,
+  Mail,
+  Phone,
+} from "lucide-react";
 
 export default function Footer() {
   return (
@@ -7,10 +14,10 @@ export default function Footer() {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="text-lg font-bold mb-4">CivicConnect</h3>
+            <h3 className="text-lg font-bold mb-4">More & More Network</h3>
             <p className="text-sm text-gray-300 mb-4">
-              Empowering citizens and government officials with a unified platform for better civic engagement and
-              governance.
+              Connecting real estate professionals with clients through a
+              unified platform for better engagement and networking.
             </p>
             <div className="flex space-x-4">
               <Link href="#" className="text-gray-300 hover:text-white">
@@ -37,7 +44,10 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/schemes" className="text-gray-300 hover:text-white">
+                <Link
+                  href="/schemes"
+                  className="text-gray-300 hover:text-white"
+                >
                   Government Schemes
                 </Link>
               </li>
@@ -52,7 +62,10 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/community" className="text-gray-300 hover:text-white">
+                <Link
+                  href="/community"
+                  className="text-gray-300 hover:text-white"
+                >
                   Community
                 </Link>
               </li>
@@ -68,12 +81,18 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/accessibility" className="text-gray-300 hover:text-white">
+                <Link
+                  href="/accessibility"
+                  className="text-gray-300 hover:text-white"
+                >
                   Accessibility
                 </Link>
               </li>
               <li>
-                <Link href="/privacy" className="text-gray-300 hover:text-white">
+                <Link
+                  href="/privacy"
+                  className="text-gray-300 hover:text-white"
+                >
                   Privacy Policy
                 </Link>
               </li>
@@ -95,13 +114,19 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li className="flex items-center">
                 <Mail className="h-4 w-4 mr-2 text-gray-300" />
-                <a href="mailto:support@civicconnect.in" className="text-gray-300 hover:text-white">
+                <a
+                  href="mailto:support@civicconnect.in"
+                  className="text-gray-300 hover:text-white"
+                >
                   support@civicconnect.in
                 </a>
               </li>
               <li className="flex items-center">
                 <Phone className="h-4 w-4 mr-2 text-gray-300" />
-                <a href="tel:+911234567890" className="text-gray-300 hover:text-white">
+                <a
+                  href="tel:+911234567890"
+                  className="text-gray-300 hover:text-white"
+                >
                   +91 1234 567 890
                 </a>
               </li>
@@ -109,10 +134,16 @@ export default function Footer() {
             <div className="mt-4">
               <h4 className="text-sm font-semibold mb-2">Download Our App</h4>
               <div className="flex space-x-2">
-                <Link href="#" className="bg-white text-blue-900 text-xs px-3 py-1 rounded">
+                <Link
+                  href="#"
+                  className="bg-white text-blue-900 text-xs px-3 py-1 rounded"
+                >
                   Google Play
                 </Link>
-                <Link href="#" className="bg-white text-blue-900 text-xs px-3 py-1 rounded">
+                <Link
+                  href="#"
+                  className="bg-white text-blue-900 text-xs px-3 py-1 rounded"
+                >
                   App Store
                 </Link>
               </div>
@@ -121,10 +152,9 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-gray-700 mt-8 pt-6 text-center text-sm text-gray-400">
-          <p>© 2023 CivicConnect. All rights reserved.</p>
-          <p className="mt-1">Made in India for India</p>
+          <p>© 2025 More & More Network. All rights reserved.</p>
         </div>
       </div>
     </footer>
-  )
+  );
 }

@@ -1,122 +1,158 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import Link from "next/link"
-import { ArrowLeft, Bell, Eye, Globe, Lock, Moon, Sun, User, Volume2, Loader2 } from "lucide-react"
-import { useAccessibility } from "@/components/accessibility-provider"
-import { useTheme } from "next-themes"
-import { Slider } from "@/components/ui/slider"
-import { useAuth } from "@/components/auth-provider"
-import { getToken } from "@/lib/auth-service"
-import { getUserProfile, updateUserProfile, getUserSettings, updateUserSettings, changePassword, uploadAvatar } from "@/lib/api-service"
-import { toast } from "sonner"
-import type { User as UserType, UserSettings } from "@/lib/types"
+import { useState, useEffect, useCallback } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  Bell,
+  Eye,
+  Globe,
+  Lock,
+  Moon,
+  Sun,
+  User,
+  Volume2,
+  Loader2,
+} from "lucide-react";
+import { useAccessibility } from "@/components/accessibility-provider";
+import { useTheme } from "next-themes";
+import { Slider } from "@/components/ui/slider";
+import { useAuth } from "@/components/auth-provider";
+import { getToken } from "@/lib/auth-service";
+import {
+  getUserProfile,
+  updateUserProfile,
+  getUserSettings,
+  updateUserSettings,
+  changePassword,
+  uploadAvatar,
+} from "@/lib/api-service";
+import { toast } from "sonner";
+import type { User as UserType, UserSettings } from "@/lib/types";
 
 export default function SettingsPage() {
-  const { highContrast, toggleHighContrast, largeText, toggleLargeText, screenReader, toggleScreenReader } =
-    useAccessibility()
-  const { theme, setTheme } = useTheme()
-  const { user, isLoggedIn, isLoading: authLoading } = useAuth()
-  
+  const {
+    highContrast,
+    toggleHighContrast,
+    largeText,
+    toggleLargeText,
+    screenReader,
+    toggleScreenReader,
+  } = useAccessibility();
+  const { theme, setTheme } = useTheme();
+  const { user, isLoggedIn, isLoading: authLoading } = useAuth();
+
   // Profile state
-  const [profile, setProfile] = useState<Partial<UserType>>({})
-  const [settings, setSettings] = useState<Partial<UserSettings>>({})
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
-  
+  const [profile, setProfile] = useState<Partial<UserType>>({});
+  const [settings, setSettings] = useState<Partial<UserSettings>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
   // Form state for account
-  const [firstName, setFirstName] = useState("")
-  const [lastName, setLastName] = useState("")
-  const [email, setEmail] = useState("")
-  const [phone, setPhone] = useState("")
-  const [address, setAddress] = useState("")
-  const [city, setCity] = useState("")
-  const [state, setState] = useState("")
-  const [pincode, setPincode] = useState("")
-  
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [pincode, setPincode] = useState("");
+
   // Password state
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [isChangingPassword, setIsChangingPassword] = useState(false)
-  
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   // Notification state
-  const [emailNotifications, setEmailNotifications] = useState(true)
-  const [smsNotifications, setSmsNotifications] = useState(true)
-  const [pushNotifications, setPushNotifications] = useState(true)
-  const [emergencyAlerts, setEmergencyAlerts] = useState(true)
-  const [schemeUpdates, setSchemeUpdates] = useState(true)
-  const [communityUpdates, setCommunityUpdates] = useState(true)
-  const [fontSizeValue, setFontSizeValue] = useState([100])
-  
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [smsNotifications, setSmsNotifications] = useState(true);
+  const [pushNotifications, setPushNotifications] = useState(true);
+  const [emergencyAlerts, setEmergencyAlerts] = useState(true);
+  const [schemeUpdates, setSchemeUpdates] = useState(true);
+  const [communityUpdates, setCommunityUpdates] = useState(true);
+  const [fontSizeValue, setFontSizeValue] = useState([100]);
+
   // Fetch profile and settings
   const fetchData = useCallback(async () => {
     if (!isLoggedIn) {
-      setIsLoading(false)
-      return
+      setIsLoading(false);
+      return;
     }
-    const token = getToken()
+    const token = getToken();
     if (!token) {
-      setIsLoading(false)
-      return
+      setIsLoading(false);
+      return;
     }
-    
+
     try {
       const [profileData, settingsData] = await Promise.all([
         getUserProfile(token),
         getUserSettings(token),
-      ])
-      
-      setProfile(profileData)
-      setSettings(settingsData)
-      
+      ]);
+
+      setProfile(profileData);
+      setSettings(settingsData);
+
       // Parse name into first/last
-      const nameParts = (profileData.name || "").split(" ")
-      setFirstName(nameParts[0] || "")
-      setLastName(nameParts.slice(1).join(" ") || "")
-      setEmail(profileData.email || "")
-      setPhone(profileData.phone || "")
-      setAddress(profileData.address || "")
-      setCity(profileData.city || "")
-      setState(profileData.state || "")
-      setPincode(profileData.pincode || "")
-      
+      const nameParts = (profileData.name || "").split(" ");
+      setFirstName(nameParts[0] || "");
+      setLastName(nameParts.slice(1).join(" ") || "");
+      setEmail(profileData.email || "");
+      setPhone(profileData.phone || "");
+      setAddress(profileData.address || "");
+      setCity(profileData.city || "");
+      setState(profileData.state || "");
+      setPincode(profileData.pincode || "");
+
       // Set notification preferences
-      setEmailNotifications(settingsData.emailNotifications ?? true)
-      setSmsNotifications(settingsData.smsNotifications ?? true)
-      setPushNotifications(settingsData.pushNotifications ?? true)
-      setEmergencyAlerts(settingsData.emergencyAlerts ?? true)
-      setSchemeUpdates(settingsData.schemeUpdates ?? true)
-      setCommunityUpdates(settingsData.communityUpdates ?? true)
-      setFontSizeValue([settingsData.fontSize ?? 100])
+      setEmailNotifications(settingsData.emailNotifications ?? true);
+      setSmsNotifications(settingsData.smsNotifications ?? true);
+      setPushNotifications(settingsData.pushNotifications ?? true);
+      setEmergencyAlerts(settingsData.emergencyAlerts ?? true);
+      setSchemeUpdates(settingsData.schemeUpdates ?? true);
+      setCommunityUpdates(settingsData.communityUpdates ?? true);
+      setFontSizeValue([settingsData.fontSize ?? 100]);
     } catch (error) {
-      console.error("Failed to fetch settings:", error)
-      toast.error("Failed to load settings")
+      console.error("Failed to fetch settings:", error);
+      toast.error("Failed to load settings");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [isLoggedIn])
-  
+  }, [isLoggedIn]);
+
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
-  
+    fetchData();
+  }, [fetchData]);
+
   const handleSaveAccount = async () => {
-    const token = getToken()
-    if (!token) return
-    
-    setIsSaving(true)
+    const token = getToken();
+    if (!token) return;
+
+    setIsSaving(true);
     try {
-      const fullName = `${firstName} ${lastName}`.trim()
+      const fullName = `${firstName} ${lastName}`.trim();
       await updateUserProfile(token, {
         name: fullName,
         phone,
@@ -124,68 +160,68 @@ export default function SettingsPage() {
         city,
         state,
         pincode,
-      })
-      toast.success("Account information saved!")
+      });
+      toast.success("Account information saved!");
     } catch (error) {
-      console.error("Failed to save account:", error)
-      toast.error("Failed to save account information")
+      console.error("Failed to save account:", error);
+      toast.error("Failed to save account information");
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
-  
+  };
+
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      toast.error("New passwords do not match")
-      return
+      toast.error("New passwords do not match");
+      return;
     }
     if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters")
-      return
+      toast.error("Password must be at least 6 characters");
+      return;
     }
-    
-    const token = getToken()
-    if (!token) return
-    
-    setIsChangingPassword(true)
+
+    const token = getToken();
+    if (!token) return;
+
+    setIsChangingPassword(true);
     try {
-      await changePassword(token, currentPassword, newPassword)
-      toast.success("Password changed successfully!")
-      setCurrentPassword("")
-      setNewPassword("")
-      setConfirmPassword("")
+      await changePassword(token, currentPassword, newPassword);
+      toast.success("Password changed successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (error) {
-      console.error("Failed to change password:", error)
-      toast.error("Failed to change password. Check your current password.")
+      console.error("Failed to change password:", error);
+      toast.error("Failed to change password. Check your current password.");
     } finally {
-      setIsChangingPassword(false)
+      setIsChangingPassword(false);
     }
-  }
-  
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const token = getToken()
-    if (!token) return
-    
-    setIsUploadingAvatar(true)
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const token = getToken();
+    if (!token) return;
+
+    setIsUploadingAvatar(true);
     try {
-      const result = await uploadAvatar(file, token)
-      setProfile(prev => ({ ...prev, avatar: result.url }))
-      toast.success("Profile picture updated!")
+      const result = await uploadAvatar(file, token);
+      setProfile((prev) => ({ ...prev, avatar: result.url }));
+      toast.success("Profile picture updated!");
     } catch (error) {
-      console.error("Failed to upload avatar:", error)
-      toast.error("Failed to upload profile picture")
+      console.error("Failed to upload avatar:", error);
+      toast.error("Failed to upload profile picture");
     } finally {
-      setIsUploadingAvatar(false)
+      setIsUploadingAvatar(false);
     }
-  }
-  
+  };
+
   const handleSaveNotifications = async () => {
-    const token = getToken()
-    if (!token) return
-    
-    setIsSaving(true)
+    const token = getToken();
+    if (!token) return;
+
+    setIsSaving(true);
     try {
       await updateUserSettings(token, {
         emailNotifications,
@@ -194,22 +230,22 @@ export default function SettingsPage() {
         emergencyAlerts,
         schemeUpdates,
         communityUpdates,
-      })
-      toast.success("Notification preferences saved!")
+      });
+      toast.success("Notification preferences saved!");
     } catch (error) {
-      console.error("Failed to save notifications:", error)
-      toast.error("Failed to save notification preferences")
+      console.error("Failed to save notifications:", error);
+      toast.error("Failed to save notification preferences");
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
-  
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-50 to-white dark:from-gray-900 dark:to-gray-950">
         <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
       </div>
-    )
+    );
   }
 
   return (
@@ -230,13 +266,23 @@ export default function SettingsPage() {
               <CardContent className="p-4">
                 <div className="flex flex-col items-center">
                   <Avatar className="h-20 w-20 mb-4">
-                    <AvatarImage src={profile.avatar || "/placeholder.svg?height=80&width=80"} alt={profile.name || "User"} />
+                    <AvatarImage
+                      src={
+                        profile.avatar || "/placeholder.svg?height=80&width=80"
+                      }
+                      alt={profile.name || "User"}
+                    />
                     <AvatarFallback className="bg-gradient-to-r from-green-500 to-teal-500 text-white text-xl">
                       {(profile.name || "U")[0]}
                     </AvatarFallback>
                   </Avatar>
-                  <h2 className="font-bold text-lg">{profile.name || "User"}</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">@{(profile.name || "user").toLowerCase().replace(/\s+/g, "")}</p>
+                  <h2 className="font-bold text-lg">
+                    {profile.name || "User"}
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    @
+                    {(profile.name || "user").toLowerCase().replace(/\s+/g, "")}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -298,7 +344,9 @@ export default function SettingsPage() {
                 <Card className="border-purple-100 dark:border-purple-900">
                   <CardHeader>
                     <CardTitle>Account Information</CardTitle>
-                    <CardDescription>Update your personal information</CardDescription>
+                    <CardDescription>
+                      Update your personal information
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -331,7 +379,9 @@ export default function SettingsPage() {
                         disabled
                         className="border-purple-200 dark:border-purple-900 bg-gray-50 dark:bg-gray-800"
                       />
-                      <p className="text-xs text-gray-500">Email cannot be changed</p>
+                      <p className="text-xs text-gray-500">
+                        Email cannot be changed
+                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -358,11 +408,11 @@ export default function SettingsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="city">City</Label>
-                        <Input 
-                          id="city" 
+                        <Input
+                          id="city"
                           value={city}
                           onChange={(e) => setCity(e.target.value)}
-                          className="border-purple-200 dark:border-purple-900" 
+                          className="border-purple-200 dark:border-purple-900"
                         />
                       </div>
                       <div className="space-y-2">
@@ -430,20 +480,27 @@ export default function SettingsPage() {
 
                     <div className="space-y-2">
                       <Label htmlFor="pincode">ZIP Code</Label>
-                      <Input 
-                        id="pincode" 
+                      <Input
+                        id="pincode"
                         value={pincode}
                         onChange={(e) => setPincode(e.target.value)}
-                        className="border-purple-200 dark:border-purple-900" 
+                        className="border-purple-200 dark:border-purple-900"
                       />
                     </div>
 
-                    <Button 
+                    <Button
                       onClick={handleSaveAccount}
                       disabled={isSaving}
                       className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                     >
-                      {isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save Changes"
+                      )}
                     </Button>
                   </CardContent>
                 </Card>
@@ -451,12 +508,20 @@ export default function SettingsPage() {
                 <Card className="border-purple-100 dark:border-purple-900">
                   <CardHeader>
                     <CardTitle>Profile Picture</CardTitle>
-                    <CardDescription>Update your profile picture</CardDescription>
+                    <CardDescription>
+                      Update your profile picture
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex flex-col md:flex-row items-center gap-4">
                       <Avatar className="h-24 w-24">
-                        <AvatarImage src={profile.avatar || "/placeholder.svg?height=96&width=96"} alt={profile.name || "User"} />
+                        <AvatarImage
+                          src={
+                            profile.avatar ||
+                            "/placeholder.svg?height=96&width=96"
+                          }
+                          alt={profile.name || "User"}
+                        />
                         <AvatarFallback className="bg-gradient-to-r from-green-500 to-teal-500 text-white text-2xl">
                           {(profile.name || "U")[0]}
                         </AvatarFallback>
@@ -478,7 +543,14 @@ export default function SettingsPage() {
                             asChild
                           >
                             <span>
-                              {isUploadingAvatar ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Uploading...</> : "Upload New Picture"}
+                              {isUploadingAvatar ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Uploading...
+                                </>
+                              ) : (
+                                "Upload New Picture"
+                              )}
                             </span>
                           </Button>
                         </label>
@@ -506,17 +578,19 @@ export default function SettingsPage() {
 
                     <div className="space-y-2">
                       <Label htmlFor="new-password">New Password</Label>
-                      <Input 
-                        id="new-password" 
-                        type="password" 
+                      <Input
+                        id="new-password"
+                        type="password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="border-purple-200 dark:border-purple-900" 
+                        className="border-purple-200 dark:border-purple-900"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="confirm-password">Confirm New Password</Label>
+                      <Label htmlFor="confirm-password">
+                        Confirm New Password
+                      </Label>
                       <Input
                         id="confirm-password"
                         type="password"
@@ -526,12 +600,24 @@ export default function SettingsPage() {
                       />
                     </div>
 
-                    <Button 
+                    <Button
                       onClick={handleChangePassword}
-                      disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
+                      disabled={
+                        isChangingPassword ||
+                        !currentPassword ||
+                        !newPassword ||
+                        !confirmPassword
+                      }
                       className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                     >
-                      {isChangingPassword ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</> : "Update Password"}
+                      {isChangingPassword ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        "Update Password"
+                      )}
                     </Button>
                   </CardContent>
                 </Card>
@@ -541,16 +627,24 @@ export default function SettingsPage() {
                 <Card className="border-purple-100 dark:border-purple-900">
                   <CardHeader>
                     <CardTitle>Notification Preferences</CardTitle>
-                    <CardDescription>Manage how you receive notifications</CardDescription>
+                    <CardDescription>
+                      Manage how you receive notifications
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Notification Channels</h3>
+                      <h3 className="text-lg font-medium">
+                        Notification Channels
+                      </h3>
 
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label htmlFor="email-notifications">Email Notifications</Label>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Receive notifications via email</p>
+                          <Label htmlFor="email-notifications">
+                            Email Notifications
+                          </Label>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Receive notifications via email
+                          </p>
                         </div>
                         <Switch
                           id="email-notifications"
@@ -561,8 +655,12 @@ export default function SettingsPage() {
 
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label htmlFor="sms-notifications">SMS Notifications</Label>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Receive notifications via SMS</p>
+                          <Label htmlFor="sms-notifications">
+                            SMS Notifications
+                          </Label>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Receive notifications via SMS
+                          </p>
                         </div>
                         <Switch
                           id="sms-notifications"
@@ -573,7 +671,9 @@ export default function SettingsPage() {
 
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label htmlFor="push-notifications">Push Notifications</Label>
+                          <Label htmlFor="push-notifications">
+                            Push Notifications
+                          </Label>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
                             Receive push notifications on your device
                           </p>
@@ -587,30 +687,48 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Notification Types</h3>
+                      <h3 className="text-lg font-medium">
+                        Notification Types
+                      </h3>
 
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label htmlFor="emergency-alerts">Emergency Alerts</Label>
+                          <Label htmlFor="emergency-alerts">
+                            Emergency Alerts
+                          </Label>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
                             Notifications for emergency situations
                           </p>
                         </div>
-                        <Switch id="emergency-alerts" checked={emergencyAlerts} onCheckedChange={setEmergencyAlerts} />
+                        <Switch
+                          id="emergency-alerts"
+                          checked={emergencyAlerts}
+                          onCheckedChange={setEmergencyAlerts}
+                        />
                       </div>
 
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
                           <Label htmlFor="scheme-updates">Scheme Updates</Label>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Updates about government schemes</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Updates about government schemes
+                          </p>
                         </div>
-                        <Switch id="scheme-updates" checked={schemeUpdates} onCheckedChange={setSchemeUpdates} />
+                        <Switch
+                          id="scheme-updates"
+                          checked={schemeUpdates}
+                          onCheckedChange={setSchemeUpdates}
+                        />
                       </div>
 
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label htmlFor="community-updates">Community Updates</Label>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Updates from your community</p>
+                          <Label htmlFor="community-updates">
+                            Community Updates
+                          </Label>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Updates from your community
+                          </p>
                         </div>
                         <Switch
                           id="community-updates"
@@ -620,12 +738,19 @@ export default function SettingsPage() {
                       </div>
                     </div>
 
-                    <Button 
+                    <Button
                       onClick={handleSaveNotifications}
                       disabled={isSaving}
                       className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                     >
-                      {isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Preferences"}
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save Preferences"
+                      )}
                     </Button>
                   </CardContent>
                 </Card>
@@ -635,7 +760,9 @@ export default function SettingsPage() {
                 <Card className="border-purple-100 dark:border-purple-900">
                   <CardHeader>
                     <CardTitle>Appearance Settings</CardTitle>
-                    <CardDescription>Customize how CivicConnect looks</CardDescription>
+                    <CardDescription>
+                      Customize how More & More Network looks
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="space-y-4">
@@ -644,7 +771,11 @@ export default function SettingsPage() {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <Button
                           variant="outline"
-                          className={`flex flex-col items-center justify-center h-24 border-2 ${theme === "light" ? "border-purple-500" : "border-gray-200 dark:border-gray-700"}`}
+                          className={`flex flex-col items-center justify-center h-24 border-2 ${
+                            theme === "light"
+                              ? "border-purple-500"
+                              : "border-gray-200 dark:border-gray-700"
+                          }`}
                           onClick={() => setTheme("light")}
                         >
                           <Sun className="h-8 w-8 mb-2 text-yellow-500" />
@@ -653,7 +784,11 @@ export default function SettingsPage() {
 
                         <Button
                           variant="outline"
-                          className={`flex flex-col items-center justify-center h-24 border-2 ${theme === "dark" ? "border-purple-500" : "border-gray-200 dark:border-gray-700"}`}
+                          className={`flex flex-col items-center justify-center h-24 border-2 ${
+                            theme === "dark"
+                              ? "border-purple-500"
+                              : "border-gray-200 dark:border-gray-700"
+                          }`}
                           onClick={() => setTheme("dark")}
                         >
                           <Moon className="h-8 w-8 mb-2 text-blue-700 dark:text-blue-400" />
@@ -662,7 +797,11 @@ export default function SettingsPage() {
 
                         <Button
                           variant="outline"
-                          className={`flex flex-col items-center justify-center h-24 border-2 ${theme === "system" ? "border-purple-500" : "border-gray-200 dark:border-gray-700"}`}
+                          className={`flex flex-col items-center justify-center h-24 border-2 ${
+                            theme === "system"
+                              ? "border-purple-500"
+                              : "border-gray-200 dark:border-gray-700"
+                          }`}
                           onClick={() => setTheme("system")}
                         >
                           <div className="flex mb-2">
@@ -706,18 +845,26 @@ export default function SettingsPage() {
                 <Card className="border-purple-100 dark:border-purple-900">
                   <CardHeader>
                     <CardTitle>Accessibility Settings</CardTitle>
-                    <CardDescription>Make CivicConnect more accessible for your needs</CardDescription>
+                    <CardDescription>
+                      Make More & More Network more accessible for your needs
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label htmlFor="high-contrast">High Contrast Mode</Label>
+                          <Label htmlFor="high-contrast">
+                            High Contrast Mode
+                          </Label>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
                             Increase contrast for better visibility
                           </p>
                         </div>
-                        <Switch id="high-contrast" checked={highContrast} onCheckedChange={toggleHighContrast} />
+                        <Switch
+                          id="high-contrast"
+                          checked={highContrast}
+                          onCheckedChange={toggleHighContrast}
+                        />
                       </div>
 
                       <div className="flex items-center justify-between">
@@ -727,25 +874,38 @@ export default function SettingsPage() {
                             Increase text size throughout the app
                           </p>
                         </div>
-                        <Switch id="large-text" checked={largeText} onCheckedChange={toggleLargeText} />
+                        <Switch
+                          id="large-text"
+                          checked={largeText}
+                          onCheckedChange={toggleLargeText}
+                        />
                       </div>
 
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label htmlFor="screen-reader">Screen Reader Support</Label>
+                          <Label htmlFor="screen-reader">
+                            Screen Reader Support
+                          </Label>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
                             Enable compatibility with screen readers
                           </p>
                         </div>
-                        <Switch id="screen-reader" checked={screenReader} onCheckedChange={toggleScreenReader} />
+                        <Switch
+                          id="screen-reader"
+                          checked={screenReader}
+                          onCheckedChange={toggleScreenReader}
+                        />
                       </div>
                     </div>
 
                     <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-md">
-                      <h3 className="font-medium text-blue-700 dark:text-blue-400 mb-2">Voice Assistant</h3>
+                      <h3 className="font-medium text-blue-700 dark:text-blue-400 mb-2">
+                        Voice Assistant
+                      </h3>
                       <p className="text-sm text-blue-600 dark:text-blue-300 mb-4">
-                        Our voice assistant can help you navigate the app using voice commands. Enable screen reader
-                        support to use this feature.
+                        Our voice assistant can help you navigate the app using
+                        voice commands. Enable screen reader support to use this
+                        feature.
                       </p>
                       <Button
                         variant="outline"
@@ -768,7 +928,9 @@ export default function SettingsPage() {
                 <Card className="border-purple-100 dark:border-purple-900">
                   <CardHeader>
                     <CardTitle>Language Settings</CardTitle>
-                    <CardDescription>Choose your preferred language</CardDescription>
+                    <CardDescription>
+                      Choose your preferred language
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="space-y-4">
@@ -785,16 +947,22 @@ export default function SettingsPage() {
                             <SelectItem value="te">తెలుగు (Telugu)</SelectItem>
                             <SelectItem value="ta">தமிழ் (Tamil)</SelectItem>
                             <SelectItem value="mr">मराठी (Marathi)</SelectItem>
-                            <SelectItem value="gu">ગુજરાતી (Gujarati)</SelectItem>
+                            <SelectItem value="gu">
+                              ગુજરાતી (Gujarati)
+                            </SelectItem>
                             <SelectItem value="kn">ಕನ್ನಡ (Kannada)</SelectItem>
-                            <SelectItem value="ml">മലയാളം (Malayalam)</SelectItem>
+                            <SelectItem value="ml">
+                              മലയാളം (Malayalam)
+                            </SelectItem>
                             <SelectItem value="pa">ਪੰਜਾਬੀ (Punjabi)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="secondary-language">Secondary Language</Label>
+                        <Label htmlFor="secondary-language">
+                          Secondary Language
+                        </Label>
                         <Select defaultValue="hi">
                           <SelectTrigger className="border-purple-200 dark:border-purple-900">
                             <SelectValue placeholder="Select secondary language" />
@@ -806,9 +974,13 @@ export default function SettingsPage() {
                             <SelectItem value="te">తెలుగు (Telugu)</SelectItem>
                             <SelectItem value="ta">தமிழ் (Tamil)</SelectItem>
                             <SelectItem value="mr">मराठी (Marathi)</SelectItem>
-                            <SelectItem value="gu">ગુજરાતી (Gujarati)</SelectItem>
+                            <SelectItem value="gu">
+                              ગુજરાતી (Gujarati)
+                            </SelectItem>
                             <SelectItem value="kn">ಕನ್ನಡ (Kannada)</SelectItem>
-                            <SelectItem value="ml">മലയാളം (Malayalam)</SelectItem>
+                            <SelectItem value="ml">
+                              മലയാളം (Malayalam)
+                            </SelectItem>
                             <SelectItem value="pa">ਪੰਜਾਬੀ (Punjabi)</SelectItem>
                           </SelectContent>
                         </Select>
@@ -817,19 +989,25 @@ export default function SettingsPage() {
 
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
-                        <Label htmlFor="auto-translate">Auto-Translate Content</Label>
+                        <Label htmlFor="auto-translate">
+                          Auto-Translate Content
+                        </Label>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Automatically translate content to your primary language
+                          Automatically translate content to your primary
+                          language
                         </p>
                       </div>
                       <Switch id="auto-translate" defaultChecked />
                     </div>
 
                     <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-md">
-                      <h3 className="font-medium text-purple-700 dark:text-purple-400 mb-2">AI Translation</h3>
+                      <h3 className="font-medium text-purple-700 dark:text-purple-400 mb-2">
+                        AI Translation
+                      </h3>
                       <p className="text-sm text-purple-600 dark:text-purple-300 mb-4">
-                        CivicConnect uses AI to provide high-quality translations across all Indian languages.
-                        Translation quality may vary by language.
+                        More & More Network uses AI to provide high-quality
+                        translations across multiple languages. Translation
+                        quality may vary by language.
                       </p>
                     </div>
 
@@ -844,38 +1022,58 @@ export default function SettingsPage() {
                 <Card className="border-purple-100 dark:border-purple-900">
                   <CardHeader>
                     <CardTitle>Privacy Settings</CardTitle>
-                    <CardDescription>Manage your privacy preferences</CardDescription>
+                    <CardDescription>
+                      Manage your privacy preferences
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Profile Visibility</h3>
+                      <h3 className="text-lg font-medium">
+                        Profile Visibility
+                      </h3>
 
                       <div className="space-y-2">
-                        <Label htmlFor="profile-visibility">Who can see your profile</Label>
+                        <Label htmlFor="profile-visibility">
+                          Who can see your profile
+                        </Label>
                         <Select defaultValue="everyone">
                           <SelectTrigger className="border-purple-200 dark:border-purple-900">
                             <SelectValue placeholder="Select visibility" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="everyone">Everyone</SelectItem>
-                            <SelectItem value="connections">Connections Only</SelectItem>
-                            <SelectItem value="officials">Government Officials Only</SelectItem>
-                            <SelectItem value="none">No One (Private)</SelectItem>
+                            <SelectItem value="connections">
+                              Connections Only
+                            </SelectItem>
+                            <SelectItem value="officials">
+                              Government Officials Only
+                            </SelectItem>
+                            <SelectItem value="none">
+                              No One (Private)
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="post-visibility">Who can see your posts</Label>
+                        <Label htmlFor="post-visibility">
+                          Who can see your posts
+                        </Label>
                         <Select defaultValue="everyone">
                           <SelectTrigger className="border-purple-200 dark:border-purple-900">
                             <SelectValue placeholder="Select visibility" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="everyone">Everyone</SelectItem>
-                            <SelectItem value="connections">Connections Only</SelectItem>
-                            <SelectItem value="officials">Government Officials Only</SelectItem>
-                            <SelectItem value="none">No One (Private)</SelectItem>
+                            <SelectItem value="connections">
+                              Connections Only
+                            </SelectItem>
+                            <SelectItem value="officials">
+                              Government Officials Only
+                            </SelectItem>
+                            <SelectItem value="none">
+                              No One (Private)
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -886,7 +1084,9 @@ export default function SettingsPage() {
 
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label htmlFor="location-sharing">Location Sharing</Label>
+                          <Label htmlFor="location-sharing">
+                            Location Sharing
+                          </Label>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
                             Share your location for local services
                           </p>
@@ -898,7 +1098,8 @@ export default function SettingsPage() {
                         <div className="space-y-0.5">
                           <Label htmlFor="data-analytics">Data Analytics</Label>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Allow anonymous usage data collection to improve services
+                            Allow anonymous usage data collection to improve
+                            services
                           </p>
                         </div>
                         <Switch id="data-analytics" defaultChecked />
@@ -906,8 +1107,12 @@ export default function SettingsPage() {
 
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label htmlFor="personalized-ads">Personalized Advertisements</Label>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Show ads based on your interests</p>
+                          <Label htmlFor="personalized-ads">
+                            Personalized Advertisements
+                          </Label>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Show ads based on your interests
+                          </p>
                         </div>
                         <Switch id="personalized-ads" defaultChecked />
                       </div>
@@ -918,7 +1123,9 @@ export default function SettingsPage() {
 
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label htmlFor="two-factor">Two-Factor Authentication</Label>
+                          <Label htmlFor="two-factor">
+                            Two-Factor Authentication
+                          </Label>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
                             Add an extra layer of security to your account
                           </p>
@@ -938,9 +1145,12 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="p-4 bg-red-50 dark:bg-red-900/30 rounded-md">
-                      <h3 className="font-medium text-red-700 dark:text-red-400 mb-2">Delete Account</h3>
+                      <h3 className="font-medium text-red-700 dark:text-red-400 mb-2">
+                        Delete Account
+                      </h3>
                       <p className="text-sm text-red-600 dark:text-red-300 mb-4">
-                        Permanently delete your account and all associated data. This action cannot be undone.
+                        Permanently delete your account and all associated data.
+                        This action cannot be undone.
                       </p>
                       <Button variant="destructive">Delete Account</Button>
                     </div>
@@ -956,5 +1166,5 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

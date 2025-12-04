@@ -1,31 +1,61 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import LanguageSwitcher from "@/components/language-switcher"
-import { Bell, Search, LogOut } from "lucide-react"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { useAuth } from "@/components/auth-provider"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import LanguageSwitcher from "@/components/language-switcher";
+import { Bell, Search, LogOut } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { useAuth } from "@/components/auth-provider";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
+import { getNotifications } from "@/lib/api-service";
+import { getToken } from "@/lib/auth-service";
 
 export default function DesktopHeader() {
-  const { user, isLoggedIn, logout, isLoading } = useAuth()
+  const { user, isLoggedIn, logout, isLoading } = useAuth();
+  const [notificationCount, setNotificationCount] = useState(0);
+
+  // Fetch notification count from API
+  useEffect(() => {
+    const fetchNotificationCount = async () => {
+      const token = getToken();
+      if (!token) {
+        setNotificationCount(0);
+        return;
+      }
+
+      try {
+        const notifications = await getNotifications(token);
+        const unreadCount = notifications.filter((n) => !n.isRead).length;
+        setNotificationCount(unreadCount);
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error);
+        setNotificationCount(0);
+      }
+    };
+
+    fetchNotificationCount();
+
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchNotificationCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-50 md:flex items-center justify-between bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 shadow-sm">
+    <header className="sticky top-0 z-50 hidden md:flex items-center justify-between bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 shadow-sm">
       <div className="flex items-center">
         <Link href="/" className="flex items-center">
           <Image
             src="/logo.png"
-            alt="CivicConnect"
+            alt="More & More Network"
             width={180}
             height={33}
             className="h-8 w-auto"
@@ -47,9 +77,11 @@ export default function DesktopHeader() {
         <Link href="/notifications">
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="h-5 w-5" />
-            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center">
-              3
-            </span>
+            {notificationCount > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center">
+                {notificationCount}
+              </span>
+            )}
           </Button>
         </Link>
 
@@ -61,14 +93,22 @@ export default function DesktopHeader() {
         ) : isLoggedIn && user ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 rounded-full px-2">
+              <Button
+                variant="ghost"
+                className="relative h-8 rounded-full px-2"
+              >
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                  <AvatarImage
+                    src={user.avatar || "/placeholder.svg"}
+                    alt={user.name}
+                  />
                   <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm">
                     {user.name?.[0] || "U"}
                   </AvatarFallback>
                 </Avatar>
-                <span className="ml-2 text-sm font-medium hidden lg:inline">{user.name}</span>
+                <span className="ml-2 text-sm font-medium hidden lg:inline">
+                  {user.name}
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -110,5 +150,5 @@ export default function DesktopHeader() {
         )}
       </div>
     </header>
-  )
+  );
 }

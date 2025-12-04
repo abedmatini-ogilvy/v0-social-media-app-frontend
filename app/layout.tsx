@@ -1,21 +1,22 @@
-import type React from "react"
-import type { Metadata } from "next"
-import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
-import AccessibilityProvider from "@/components/accessibility-provider"
-import { AuthProvider } from "@/components/auth-provider"
-import { Toaster } from "@/components/ui/sonner"
+import type React from "react";
+import type { Metadata } from "next";
+import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import AccessibilityProvider from "@/components/accessibility-provider";
+import { AuthProvider } from "@/components/auth-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "CivicConnect",
-  description: "Connecting citizens with government services and community resources",
-    generator: 'v0.app'
-}
+  title: "More & More Network",
+  description:
+    "Connecting real estate professionals with clients and opportunities",
+  generator: "v0.app",
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -29,5 +30,5 @@ export default function RootLayout({
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }
