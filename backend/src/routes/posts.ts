@@ -30,6 +30,7 @@ const updatePostValidation = [
 // Comment validation
 const commentValidation = [
   body('content').trim().notEmpty().withMessage('Comment content is required'),
+  body('parentId').optional().isString().withMessage('Parent ID must be a string'),
 ];
 
 // Routes - wrapped with asyncHandler

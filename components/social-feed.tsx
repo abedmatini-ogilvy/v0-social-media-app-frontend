@@ -32,6 +32,9 @@ import {
   Upload,
   Link,
   X,
+  Reply,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -66,6 +69,7 @@ import {
   unlikePost,
   getPostComments,
   addComment,
+  addReply,
   connectWithUser,
   disconnectFromUser,
   deletePost,
@@ -829,6 +833,226 @@ export default function SocialFeed() {
   );
 }
 
+// Helper function to add a reply to the correct comment in the nested structure
+function addReplyToComments(
+  comments: Comment[],
+  newReply: Comment,
+  parentId: string
+): Comment[] {
+  return comments.map((comment) => {
+    if (comment.id === parentId) {
+      // Found the parent, add reply
+      return {
+        ...comment,
+        replyCount: comment.replyCount + 1,
+        replies: [...(comment.replies || []), newReply],
+      };
+    }
+    // Check nested replies
+    if (comment.replies && comment.replies.length > 0) {
+      return {
+        ...comment,
+        replies: addReplyToComments(comment.replies, newReply, parentId),
+      };
+    }
+    return comment;
+  });
+}
+
+// CommentItem component for rendering nested comments
+interface CommentItemProps {
+  comment: Comment;
+  postId: string;
+  onReplyAdded: (reply: Comment, parentId: string) => void;
+  depth: number;
+}
+
+function CommentItem({
+  comment,
+  postId,
+  onReplyAdded,
+  depth,
+}: CommentItemProps) {
+  const [showReplyInput, setShowReplyInput] = useState(false);
+  const [replyContent, setReplyContent] = useState("");
+  const [isPostingReply, setIsPostingReply] = useState(false);
+  const [showReplies, setShowReplies] = useState(false);
+  const { isLoggedIn, user } = useAuth();
+
+  const hasReplies = comment.replies && comment.replies.length > 0;
+  const maxDepth = 2; // Maximum nesting level
+
+  const handleSubmitReply = async () => {
+    if (!replyContent.trim() || !isLoggedIn) return;
+
+    setIsPostingReply(true);
+    try {
+      const token = getToken();
+      if (token) {
+        const reply = await addReply(postId, comment.id, replyContent, token);
+        onReplyAdded(reply, comment.id);
+        setReplyContent("");
+        setShowReplyInput(false);
+        setShowReplies(true); // Show replies after adding one
+        toast.success("Reply added!");
+      }
+    } catch (err) {
+      console.error("Failed to add reply:", err);
+      toast.error("Failed to add reply");
+    } finally {
+      setIsPostingReply(false);
+    }
+  };
+
+  // Prepend @handle to reply if available
+  const handleReplyClick = () => {
+    setShowReplyInput(true);
+    if (comment.author.handle) {
+      setReplyContent(`@${comment.author.handle} `);
+    }
+  };
+
+  return (
+    <div
+      className={`${
+        depth > 0
+          ? "ml-6 pl-3 border-l-2 border-gray-200 dark:border-gray-700"
+          : ""
+      }`}
+    >
+      <div className="flex gap-2">
+        <Avatar className="h-7 w-7 shrink-0">
+          <AvatarImage src={comment.author.avatar || "/placeholder.svg"} />
+          <AvatarFallback className="text-xs">
+            {comment.author.name[0]}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium">{comment.author.name}</span>
+              {comment.author.handle && (
+                <span className="text-xs text-gray-500">
+                  @{comment.author.handle}
+                </span>
+              )}
+              <span className="text-xs text-gray-500">
+                {formatRelativeTime(comment.createdAt)}
+              </span>
+            </div>
+            <p className="text-sm text-gray-700 dark:text-gray-300 break-words">
+              {comment.content}
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-3 mt-1 ml-1">
+            {isLoggedIn && depth < maxDepth && (
+              <button
+                onClick={handleReplyClick}
+                className="text-xs text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 flex items-center gap-1"
+              >
+                <Reply className="h-3 w-3" />
+                Reply
+              </button>
+            )}
+            {hasReplies && (
+              <button
+                onClick={() => setShowReplies(!showReplies)}
+                className="text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1"
+              >
+                {showReplies ? (
+                  <>
+                    <ChevronUp className="h-3 w-3" />
+                    Hide {comment.replyCount}{" "}
+                    {comment.replyCount === 1 ? "reply" : "replies"}
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-3 w-3" />
+                    View {comment.replyCount}{" "}
+                    {comment.replyCount === 1 ? "reply" : "replies"}
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Reply input */}
+          {showReplyInput && (
+            <div className="flex gap-2 mt-2">
+              <Avatar className="h-6 w-6 shrink-0">
+                <AvatarImage src={user?.avatar || "/placeholder.svg"} />
+                <AvatarFallback className="text-xs">
+                  {user?.name?.[0] || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 flex gap-2">
+                <Input
+                  placeholder="Write a reply..."
+                  value={replyContent}
+                  onChange={(e) => setReplyContent(e.target.value)}
+                  className="flex-1 h-7 text-sm"
+                  disabled={isPostingReply}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmitReply();
+                    }
+                    if (e.key === "Escape") {
+                      setShowReplyInput(false);
+                      setReplyContent("");
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={handleSubmitReply}
+                  disabled={!replyContent.trim() || isPostingReply}
+                >
+                  {isPostingReply ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    "Reply"
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs"
+                  onClick={() => {
+                    setShowReplyInput(false);
+                    setReplyContent("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Nested replies */}
+          {showReplies && hasReplies && (
+            <div className="mt-2 space-y-2">
+              {comment.replies!.map((reply) => (
+                <CommentItem
+                  key={reply.id}
+                  comment={reply}
+                  postId={postId}
+                  onReplyAdded={onReplyAdded}
+                  depth={depth + 1}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface PostCardProps {
   post: Post;
   onDelete?: (postId: string) => void;
@@ -1198,37 +1422,26 @@ function PostCard({ post, onDelete }: PostCardProps) {
               </div>
             )}
 
-            {/* Comments list */}
+            {/* Comments list with nested replies */}
             {isLoadingComments ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
               </div>
             ) : comments.length > 0 ? (
-              <div className="space-y-3 max-h-60 overflow-y-auto">
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
                 {comments.map((comment) => (
-                  <div key={comment.id} className="flex gap-2">
-                    <Avatar className="h-7 w-7">
-                      <AvatarImage
-                        src={comment.author.avatar || "/placeholder.svg"}
-                      />
-                      <AvatarFallback className="text-xs">
-                        {comment.author.name[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">
-                          {comment.author.name}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {formatRelativeTime(comment.createdAt)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300">
-                        {comment.content}
-                      </p>
-                    </div>
-                  </div>
+                  <CommentItem
+                    key={comment.id}
+                    comment={comment}
+                    postId={post.id}
+                    onReplyAdded={(newReply, parentId) => {
+                      // Update the comments state with the new reply
+                      setComments((prev) =>
+                        addReplyToComments(prev, newReply, parentId)
+                      );
+                    }}
+                    depth={0}
+                  />
                 ))}
               </div>
             ) : (

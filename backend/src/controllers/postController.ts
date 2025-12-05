@@ -3,6 +3,54 @@ import prisma from '../services/prisma.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { type AuthRequest } from '../middleware/auth.js';
 
+// Helper to extract @mentions from text and create notifications
+async function processMentions(
+  content: string,
+  authorId: string,
+  authorName: string,
+  postId: string,
+  type: 'post' | 'comment'
+): Promise<void> {
+  // Extract all @mentions from content
+  const mentionRegex = /@([a-zA-Z0-9_]+)/g;
+  const matches = content.match(mentionRegex);
+  
+  if (!matches || matches.length === 0) return;
+
+  // Get unique handles (remove @ prefix)
+  const handles = [...new Set(matches.map(m => m.substring(1).toLowerCase()))];
+  
+  // Find users with these handles
+  const mentionedUsers = await prisma.user.findMany({
+    where: {
+      handle: {
+        in: handles,
+        mode: 'insensitive',
+      },
+      // Don't notify the author if they mention themselves
+      NOT: { id: authorId },
+    },
+    select: { id: true, handle: true },
+  });
+
+  // Create notifications for each mentioned user
+  if (mentionedUsers.length > 0) {
+    const notifications = mentionedUsers.map(user => ({
+      type: 'message' as const,
+      title: 'You were mentioned',
+      content: type === 'post' 
+        ? `${authorName} mentioned you in a post`
+        : `${authorName} mentioned you in a comment`,
+      userId: user.id,
+      actionUrl: `/?post=${postId}`,
+    }));
+
+    await prisma.notification.createMany({
+      data: notifications,
+    });
+  }
+}
+
 // Helper to format post response
 const formatPostResponse = (post: {
   id: string;
@@ -169,6 +217,7 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
             id: true,
             name: true,
             email: true,
+            handle: true,
             avatar: true,
             role: true,
             isVerified: true,
@@ -177,6 +226,12 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
         },
       },
     });
+
+    // Process @mentions in the post content
+    const authorName = post.author.handle 
+      ? `@${post.author.handle}` 
+      : post.author.name;
+    await processMentions(content, req.userId!, authorName, post.id, 'post');
 
     res.status(201).json(formatPostResponse(post));
   } catch (error) {
@@ -372,44 +427,127 @@ export const unlikePost = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
+// Helper to format a comment with author
+const formatCommentResponse = (comment: {
+  id: string;
+  content: string;
+  postId: string;
+  parentId: string | null;
+  replyCount: number;
+  createdAt: Date;
+  author: {
+    id: string;
+    name: string;
+    email: string;
+    handle: string | null;
+    avatar: string | null;
+    role: string;
+    isVerified: boolean;
+    createdAt: Date;
+  };
+  replies?: Array<{
+    id: string;
+    content: string;
+    postId: string;
+    parentId: string | null;
+    replyCount: number;
+    createdAt: Date;
+    author: {
+      id: string;
+      name: string;
+      email: string;
+      handle: string | null;
+      avatar: string | null;
+      role: string;
+      isVerified: boolean;
+      createdAt: Date;
+    };
+    replies?: Array<unknown>;
+  }>;
+}) => ({
+  id: comment.id,
+  content: comment.content,
+  postId: comment.postId,
+  parentId: comment.parentId,
+  replyCount: comment.replyCount,
+  createdAt: comment.createdAt.toISOString(),
+  author: {
+    id: comment.author.id,
+    name: comment.author.name,
+    email: comment.author.email,
+    handle: comment.author.handle,
+    avatar: comment.author.avatar,
+    role: comment.author.role,
+    isVerified: comment.author.isVerified,
+    createdAt: comment.author.createdAt.toISOString(),
+  },
+  replies: comment.replies?.map((reply) => formatCommentResponse(reply as typeof comment)) || [],
+});
+
 export const getComments = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { postId } = req.params;
 
+    // Fetch top-level comments (parentId is null) with up to 2 levels of replies
     const comments = await prisma.comment.findMany({
-      where: { postId },
+      where: { 
+        postId,
+        parentId: null, // Only top-level comments
+      },
       include: {
         author: {
           select: {
             id: true,
             name: true,
             email: true,
+            handle: true,
             avatar: true,
             role: true,
             isVerified: true,
             createdAt: true,
           },
         },
+        // Level 1 replies
+        replies: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                handle: true,
+                avatar: true,
+                role: true,
+                isVerified: true,
+                createdAt: true,
+              },
+            },
+            // Level 2 replies (max depth)
+            replies: {
+              include: {
+                author: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    handle: true,
+                    avatar: true,
+                    role: true,
+                    isVerified: true,
+                    createdAt: true,
+                  },
+                },
+              },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json(
-      comments.map((comment) => ({
-        id: comment.id,
-        content: comment.content,
-        createdAt: comment.createdAt.toISOString(),
-        author: {
-          id: comment.author.id,
-          name: comment.author.name,
-          email: comment.author.email,
-          avatar: comment.author.avatar,
-          role: comment.author.role,
-          isVerified: comment.author.isVerified,
-          createdAt: comment.author.createdAt.toISOString(),
-        },
-      }))
-    );
+    res.json(comments.map(formatCommentResponse));
   } catch (error) {
     throw new AppError('Failed to get comments', 500, 'INTERNAL_ERROR');
   }
@@ -418,7 +556,7 @@ export const getComments = async (req: AuthRequest, res: Response): Promise<void
 export const addComment = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { postId } = req.params;
-    const { content } = req.body;
+    const { content, parentId } = req.body;
 
     if (!postId) {
       throw new AppError('Post ID is required', 400, 'VALIDATION_ERROR');
@@ -433,12 +571,62 @@ export const addComment = async (req: AuthRequest, res: Response): Promise<void>
       throw new AppError('Post not found', 404, 'NOT_FOUND');
     }
 
-    // Create comment
+    // If this is a reply, validate parent comment and depth
+    let actualParentId = parentId;
+    let parentCommentAuthorId: string | null = null;
+    
+    if (parentId) {
+      const parentComment = await prisma.comment.findUnique({
+        where: { id: parentId },
+        include: {
+          parent: true, // Get parent's parent to check depth
+          author: {
+            select: { id: true, name: true },
+          },
+        },
+      });
+
+      if (!parentComment) {
+        throw new AppError('Parent comment not found', 404, 'NOT_FOUND');
+      }
+
+      if (parentComment.postId !== postId) {
+        throw new AppError('Parent comment does not belong to this post', 400, 'VALIDATION_ERROR');
+      }
+
+      // Store parent comment author for notification
+      parentCommentAuthorId = parentComment.authorId;
+
+      // Check depth - max 2 levels (comment -> reply -> reply to reply)
+      // If parent already has a parent (is a reply), and that parent also has a parent (is level 2),
+      // then we can't go deeper - attach to the level 2 parent instead
+      if (parentComment.parent?.parentId) {
+        // Parent is already at level 2, attach reply to level 2 parent
+        actualParentId = parentComment.parentId;
+        // Update the author to notify (the level 2 parent author)
+        const level2Parent = await prisma.comment.findUnique({
+          where: { id: actualParentId },
+          select: { authorId: true },
+        });
+        if (level2Parent) {
+          parentCommentAuthorId = level2Parent.authorId;
+        }
+      }
+    }
+
+    // Get the current user's name for notification
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { name: true, handle: true },
+    });
+
+    // Create comment/reply
     const comment = await prisma.comment.create({
       data: {
         content,
         postId,
         authorId: req.userId!,
+        parentId: actualParentId || null,
       },
       include: {
         author: {
@@ -446,6 +634,7 @@ export const addComment = async (req: AuthRequest, res: Response): Promise<void>
             id: true,
             name: true,
             email: true,
+            handle: true,
             avatar: true,
             role: true,
             isVerified: true,
@@ -461,19 +650,72 @@ export const addComment = async (req: AuthRequest, res: Response): Promise<void>
       data: { comments: { increment: 1 } },
     });
 
+    // If this is a reply, update parent's reply count and send notification
+    if (actualParentId) {
+      await prisma.comment.update({
+        where: { id: actualParentId },
+        data: { replyCount: { increment: 1 } },
+      });
+
+      // Create notification for parent comment author (if not replying to own comment)
+      if (parentCommentAuthorId && parentCommentAuthorId !== req.userId) {
+        const commenterName = currentUser?.handle 
+          ? `@${currentUser.handle}` 
+          : currentUser?.name || 'Someone';
+        
+        await prisma.notification.create({
+          data: {
+            type: 'message', // Using 'message' type for replies
+            title: 'New Reply',
+            content: `${commenterName} replied to your comment`,
+            userId: parentCommentAuthorId,
+            actionUrl: `/?post=${postId}`, // Link to the post
+          },
+        });
+      }
+    } else {
+      // This is a top-level comment - notify the post author (if not commenting on own post)
+      if (post.authorId !== req.userId) {
+        const commenterName = currentUser?.handle 
+          ? `@${currentUser.handle}` 
+          : currentUser?.name || 'Someone';
+        
+        await prisma.notification.create({
+          data: {
+            type: 'message',
+            title: 'New Comment',
+            content: `${commenterName} commented on your post`,
+            userId: post.authorId,
+            actionUrl: `/?post=${postId}`,
+          },
+        });
+      }
+    }
+
+    // Process @mentions in the comment content
+    const authorName = currentUser?.handle 
+      ? `@${currentUser.handle}` 
+      : currentUser?.name || 'Someone';
+    await processMentions(content, req.userId!, authorName, postId, 'comment');
+
     res.status(201).json({
       id: comment.id,
       content: comment.content,
+      postId: comment.postId,
+      parentId: comment.parentId,
+      replyCount: comment.replyCount,
       createdAt: comment.createdAt.toISOString(),
       author: {
         id: comment.author.id,
         name: comment.author.name,
         email: comment.author.email,
+        handle: comment.author.handle,
         avatar: comment.author.avatar,
         role: comment.author.role,
         isVerified: comment.author.isVerified,
         createdAt: comment.author.createdAt.toISOString(),
       },
+      replies: [],
     });
   } catch (error) {
     if (error instanceof AppError) {

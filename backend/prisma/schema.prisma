@@ -70,6 +70,7 @@ model User {
   id         String   @id @default(cuid())
   name       String
   email      String   @unique
+  handle     String?  @unique // Unique username handle for @mentions (e.g., @priya_sharma)
   password   String
   avatar     String?
   coverPhoto String?
@@ -175,17 +176,23 @@ model Post {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
-  content   String
-  postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  reports   Report[]
+  id         String   @id @default(cuid())
+  content    String
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  // Reply support - self-referencing relation (max 2 levels deep)
+  parentId   String?  // If set, this is a reply to another comment
+  parent     Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    Comment[] @relation("CommentReplies")
+  replyCount Int      @default(0) // Cached count of direct replies
+  createdAt  DateTime @default(now())
+  reports    Report[]
 
   @@index([postId])
   @@index([authorId])
+  @@index([parentId])
 }
 
 model Scheme {

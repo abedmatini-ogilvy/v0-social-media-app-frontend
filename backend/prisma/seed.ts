@@ -33,6 +33,7 @@ async function main() {
     data: {
       name: 'Admin User',
       email: 'admin@civicconnect.com',
+      handle: 'admin',
       password: adminPassword,
       role: 'admin',
       isVerified: true,
@@ -49,6 +50,7 @@ async function main() {
       data: {
         name: 'Priya Sharma',
         email: 'priya@example.com',
+        handle: 'priya_sharma',
         password: hashedPassword,
         role: 'citizen',
         isVerified: true,
@@ -59,6 +61,7 @@ async function main() {
       data: {
         name: 'Raj Kumar',
         email: 'raj@example.com',
+        handle: 'raj_kumar',
         password: hashedPassword,
         role: 'citizen',
         isVerified: true,
@@ -69,6 +72,7 @@ async function main() {
       data: {
         name: 'Municipal Official',
         email: 'official@gov.in',
+        handle: 'municipal_official',
         password: hashedPassword,
         role: 'official',
         isVerified: true,
@@ -79,6 +83,7 @@ async function main() {
       data: {
         name: 'Anita Desai',
         email: 'anita@example.com',
+        handle: 'anita_desai',
         password: hashedPassword,
         role: 'citizen',
         isVerified: false,
@@ -89,6 +94,7 @@ async function main() {
       data: {
         name: 'Health Department',
         email: 'health@gov.in',
+        handle: 'health_dept',
         password: hashedPassword,
         role: 'official',
         isVerified: true,
@@ -346,31 +352,76 @@ async function main() {
     }),
   ]);
 
-  // Create comments on posts
-  console.log('💬 Creating comments...');
-  await Promise.all([
-    prisma.comment.create({
-      data: {
-        content: 'This is wonderful news! Our village needed this road for so long.',
-        postId: posts[0]!.id,
-        authorId: priya!.id,
-      },
-    }),
-    prisma.comment.create({
-      data: {
-        content: 'When will the work start exactly?',
-        postId: posts[0]!.id,
-        authorId: raj!.id,
-      },
-    }),
-    prisma.comment.create({
-      data: {
-        content: 'Congratulations! Which CSC center did you visit?',
-        postId: posts[1]!.id,
-        authorId: anita!.id,
-      },
-    }),
-  ]);
+  // Create comments on posts with replies
+  console.log('💬 Creating comments with replies...');
+  
+  // First post - road construction (with replies)
+  const comment1 = await prisma.comment.create({
+    data: {
+      content: 'This is wonderful news! Our village needed this road for so long.',
+      postId: posts[0]!.id,
+      authorId: priya!.id,
+      replyCount: 2,
+    },
+  });
+  
+  const comment2 = await prisma.comment.create({
+    data: {
+      content: 'When will the work start exactly?',
+      postId: posts[0]!.id,
+      authorId: raj!.id,
+      replyCount: 1,
+    },
+  });
+  
+  // Replies to comment1
+  const reply1 = await prisma.comment.create({
+    data: {
+      content: '@priya_sharma Yes! It has been 5 years since we requested this.',
+      postId: posts[0]!.id,
+      authorId: raj!.id,
+      parentId: comment1.id,
+      replyCount: 1,
+    },
+  });
+  
+  await prisma.comment.create({
+    data: {
+      content: '@municipal_official Thank you for making this happen!',
+      postId: posts[0]!.id,
+      authorId: anita!.id,
+      parentId: comment1.id,
+    },
+  });
+  
+  // Reply to reply1 (2nd level - max depth)
+  await prisma.comment.create({
+    data: {
+      content: '@raj_kumar Indeed! Better late than never 🙌',
+      postId: posts[0]!.id,
+      authorId: priya!.id,
+      parentId: reply1.id,
+    },
+  });
+  
+  // Reply to comment2
+  await prisma.comment.create({
+    data: {
+      content: '@raj_kumar Work will begin on the 15th of next month. We will share detailed schedule soon.',
+      postId: posts[0]!.id,
+      authorId: municipal!.id,
+      parentId: comment2.id,
+    },
+  });
+  
+  // Second post - PM Kisan comment
+  await prisma.comment.create({
+    data: {
+      content: 'Congratulations! Which CSC center did you visit?',
+      postId: posts[1]!.id,
+      authorId: anita!.id,
+    },
+  });
 
   // Create connections
   console.log('🤝 Creating connections...');

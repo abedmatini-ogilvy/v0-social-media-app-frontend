@@ -18,6 +18,7 @@ export interface User {
   id: string
   name: string
   email: string
+  handle?: string | null // Unique username handle for @mentions (e.g., @priya_sharma)
   avatar?: string | null
   coverPhoto?: string | null
   bio?: string | null
@@ -106,8 +107,11 @@ export interface Comment {
   id: string
   content: string
   postId: string
-  authorId: string
+  authorId?: string
   author: User
+  parentId?: string | null // If set, this is a reply to another comment
+  replyCount: number // Cached count of direct replies
+  replies?: Comment[] // Nested replies (max 2 levels deep)
   createdAt: string
 }
 

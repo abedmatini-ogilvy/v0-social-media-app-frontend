@@ -9,6 +9,7 @@ const formatUserResponse = (user: {
   id: string;
   name: string;
   email: string;
+  handle?: string | null;
   avatar: string | null;
   coverPhoto?: string | null;
   bio?: string | null;
@@ -28,6 +29,7 @@ const formatUserResponse = (user: {
   id: user.id,
   name: user.name,
   email: user.email,
+  handle: user.handle || null,
   avatar: user.avatar,
   coverPhoto: user.coverPhoto || null,
   bio: user.bio || null,
@@ -72,12 +74,26 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
 
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, avatar, coverPhoto, bio, location, occupation, phone, website, interests, address, city, state, pincode } = req.body;
+    const { name, handle, avatar, coverPhoto, bio, location, occupation, phone, website, interests, address, city, state, pincode } = req.body;
+
+    // If updating handle, check if it's unique
+    if (handle) {
+      const existingHandle = await prisma.user.findFirst({
+        where: { 
+          handle,
+          NOT: { id: req.userId }
+        },
+      });
+      if (existingHandle) {
+        throw new AppError('This handle is already taken', 409, 'CONFLICT');
+      }
+    }
 
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: {
         ...(name && { name }),
+        ...(handle !== undefined && { handle }),
         ...(avatar !== undefined && { avatar }),
         ...(coverPhoto !== undefined && { coverPhoto }),
         ...(bio !== undefined && { bio }),
@@ -153,6 +169,7 @@ export const getConnections = async (req: AuthRequest, res: Response): Promise<v
             id: true,
             name: true,
             email: true,
+            handle: true,
             avatar: true,
             role: true,
             isVerified: true,
@@ -275,6 +292,7 @@ export const getSuggestedConnections = async (req: AuthRequest, res: Response): 
         id: true,
         name: true,
         email: true,
+        handle: true,
         avatar: true,
         role: true,
         isVerified: true,

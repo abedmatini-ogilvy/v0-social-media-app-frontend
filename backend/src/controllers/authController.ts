@@ -14,6 +14,7 @@ const formatUserResponse = (user: {
   id: string;
   name: string;
   email: string;
+  handle: string | null;
   avatar: string | null;
   role: string;
   isVerified: boolean;
@@ -22,15 +23,27 @@ const formatUserResponse = (user: {
   id: user.id,
   name: user.name,
   email: user.email,
+  handle: user.handle,
   avatar: user.avatar,
   role: user.role,
   isVerified: user.isVerified,
   createdAt: user.createdAt.toISOString(),
 });
 
+// Helper to generate a unique handle from name
+const generateHandle = (name: string): string => {
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '') // Remove special chars
+    .replace(/\s+/g, '_') // Replace spaces with underscores
+    .substring(0, 20); // Limit length
+  const randomSuffix = Math.random().toString(36).substring(2, 6);
+  return `${base}_${randomSuffix}`;
+};
+
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, handle } = req.body;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -41,14 +54,39 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       throw new AppError('User with this email already exists', 409, 'CONFLICT');
     }
 
+    // Check if handle is taken (if provided)
+    if (handle) {
+      const existingHandle = await prisma.user.findUnique({
+        where: { handle },
+      });
+      if (existingHandle) {
+        throw new AppError('This handle is already taken', 409, 'CONFLICT');
+      }
+    }
+
     // Hash password
     const hashedPassword = await hashPassword(password);
+
+    // Generate handle if not provided
+    let userHandle = handle || generateHandle(name);
+    
+    // Ensure handle is unique (retry with different random suffix if needed)
+    let attempts = 0;
+    while (attempts < 5) {
+      const existingHandle = await prisma.user.findUnique({
+        where: { handle: userHandle },
+      });
+      if (!existingHandle) break;
+      userHandle = generateHandle(name);
+      attempts++;
+    }
 
     // Create user
     const user = await prisma.user.create({
       data: {
         name,
         email,
+        handle: userHandle,
         password: hashedPassword,
         role: role || 'citizen',
       },

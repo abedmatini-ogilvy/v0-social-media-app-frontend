@@ -323,8 +323,17 @@ export async function getPostComments(postId: string, token: string): Promise<Co
   return apiRequest<Comment[]>(API_ENDPOINTS.POSTS.COMMENTS(postId), "GET", undefined, token)
 }
 
-export async function addComment(postId: string, content: string, token: string): Promise<Comment> {
-  return apiRequest<Comment>(API_ENDPOINTS.POSTS.ADD_COMMENT(postId), "POST", { content }, token)
+export async function addComment(postId: string, content: string, token: string, parentId?: string): Promise<Comment> {
+  const payload: { content: string; parentId?: string } = { content }
+  if (parentId) {
+    payload.parentId = parentId
+  }
+  return apiRequest<Comment>(API_ENDPOINTS.POSTS.ADD_COMMENT(postId), "POST", payload, token)
+}
+
+// Convenience function for adding a reply to a comment
+export async function addReply(postId: string, parentId: string, content: string, token: string): Promise<Comment> {
+  return addComment(postId, content, token, parentId)
 }
 
 // ==================== UPLOAD API ====================
