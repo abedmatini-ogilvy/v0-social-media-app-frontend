@@ -13,7 +13,6 @@ import {
   SheetTrigger,
   SheetClose,
 } from "@/components/ui/sheet";
-import LanguageSwitcher from "@/components/language-switcher";
 import { useAuth } from "@/components/auth-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -132,13 +131,6 @@ export default function MobileHeader() {
                   </div>
                 </div>
               )}
-
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-gray-500">Settings</h3>
-                <div className="space-y-1">
-                  <LanguageSwitcher />
-                </div>
-              </div>
 
               <div className="space-y-3">
                 <h3 className="text-sm font-medium text-gray-500">Explore</h3>

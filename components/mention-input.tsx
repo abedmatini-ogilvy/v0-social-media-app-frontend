@@ -210,7 +210,7 @@ export function MentionInput({
   const baseClassName = `w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed ${className}`;
 
   return (
-    <div className="relative">
+    <div className="relative w-full flex-1">
       {variant === "textarea" ? (
         <textarea
           ref={inputRef as React.RefObject<HTMLTextAreaElement>}

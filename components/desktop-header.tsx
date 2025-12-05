@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import LanguageSwitcher from "@/components/language-switcher";
 import { Bell, Search, LogOut } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/components/auth-provider";
@@ -85,7 +84,6 @@ export default function DesktopHeader() {
           </Button>
         </Link>
 
-        <LanguageSwitcher />
         <ThemeToggle />
 
         {isLoading ? (
