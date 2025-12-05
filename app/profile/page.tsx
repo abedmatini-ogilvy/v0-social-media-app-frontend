@@ -77,7 +77,7 @@ const defaultProfile: ProfileData = {
   avatar: "/placeholder.svg?height=100&width=100",
   coverPhoto: "/placeholder.svg?height=400&width=1200",
   bio: "Welcome to More & More Network! Update your profile to share more about yourself.",
-  location: "India",
+  location: "",
   occupation: "",
   joinedDate: "Joined recently",
   email: "",
@@ -121,7 +121,7 @@ export default function ProfilePage() {
         coverPhoto:
           profileData.coverPhoto || "/placeholder.svg?height=400&width=1200",
         bio: profileData.bio || "Welcome to More & More Network!",
-        location: profileData.location || "India",
+        location: profileData.location || "",
         occupation: profileData.occupation || "",
         joinedDate: `Joined ${new Date(
           profileData.createdAt || Date.now()
