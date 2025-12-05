@@ -98,6 +98,7 @@ export interface Post {
   content: string
   images?: string[]  // Multiple images support (max 10)
   image?: string | null  // Backward compatibility - first image
+  videoUrl?: string | null  // YouTube or Vimeo URL
   location?: string | null
   likes: number
   comments: number

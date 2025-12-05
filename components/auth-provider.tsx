@@ -31,6 +31,8 @@ interface RegisterData {
   email: string
   password: string
   role: "citizen" | "official"
+  location?: string
+  phone?: string
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)

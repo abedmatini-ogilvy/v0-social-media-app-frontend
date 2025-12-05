@@ -19,6 +19,7 @@ const createPostValidation = [
   body('image').optional(), // Backward compatibility - single image
   body('images').optional().isArray({ max: 10 }).withMessage('Images must be an array with max 10 items'),
   body('images.*').optional().isString().withMessage('Each image must be a string URL'),
+  body('videoUrl').optional().isString().isURL().withMessage('Video URL must be a valid URL'),
   body('location').optional().trim(),
 ];
 
@@ -28,6 +29,7 @@ const updatePostValidation = [
   body('image').optional(), // Backward compatibility - single image
   body('images').optional().isArray({ max: 10 }).withMessage('Images must be an array with max 10 items'),
   body('images.*').optional().isString().withMessage('Each image must be a string URL'),
+  body('videoUrl').optional().isString().withMessage('Video URL must be a string'),
   body('location').optional().trim(),
 ];
 

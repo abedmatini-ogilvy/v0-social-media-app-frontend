@@ -208,6 +208,8 @@ export async function register(userData: {
   email: string
   password: string
   role: "citizen" | "official"
+  location?: string
+  phone?: string
 }): Promise<AuthResponse> {
   return apiRequest<AuthResponse>(API_ENDPOINTS.AUTH.REGISTER, "POST", userData)
 }
@@ -307,7 +309,7 @@ export async function getPublicFeed(): Promise<Post[]> {
 export async function createPost(
   content: string, 
   token: string, 
-  options?: { image?: string; images?: string[]; location?: string }
+  options?: { image?: string; images?: string[]; videoUrl?: string; location?: string }
 ): Promise<Post> {
   // Support both single image (backward compat) and images array
   const images = options?.images || (options?.image ? [options.image] : undefined);
@@ -318,6 +320,7 @@ export async function createPost(
     { 
       content, 
       images,
+      videoUrl: options?.videoUrl,
       location: options?.location 
     }, 
     token

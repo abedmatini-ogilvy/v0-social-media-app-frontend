@@ -57,6 +57,7 @@ const formatPostResponse = (
     id: string;
     content: string;
     images: string[];
+    videoUrl: string | null;
     location: string | null;
     comments: number;
     shares: number;
@@ -81,6 +82,7 @@ const formatPostResponse = (
   images: post.images,
   // Keep backward compatibility - return first image as 'image' field
   image: post.images.length > 0 ? post.images[0] : null,
+  videoUrl: post.videoUrl,
   location: post.location,
   likes: post._count?.postLikes ?? 0,
   comments: post.comments,
@@ -255,9 +257,28 @@ export const getMyPosts = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
+// Helper to validate YouTube/Vimeo URLs
+const isValidVideoUrl = (url: string): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  // YouTube patterns
+  const youtubePatterns = [
+    /^https?:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+/,
+    /^https?:\/\/(www\.)?youtube\.com\/embed\/[\w-]+/,
+    /^https?:\/\/youtu\.be\/[\w-]+/,
+    /^https?:\/\/(www\.)?youtube\.com\/shorts\/[\w-]+/,
+  ];
+  // Vimeo patterns
+  const vimeoPatterns = [
+    /^https?:\/\/(www\.)?vimeo\.com\/\d+/,
+    /^https?:\/\/player\.vimeo\.com\/video\/\d+/,
+  ];
+  return [...youtubePatterns, ...vimeoPatterns].some(pattern => pattern.test(trimmed));
+};
+
 export const createPost = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { content, image, images, location } = req.body;
+    const { content, image, images, location, videoUrl } = req.body;
     
     // Support both single 'image' (backward compat) and 'images' array
     let imageList: string[] = [];
@@ -271,11 +292,21 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
     if (imageList.length > 10) {
       imageList = imageList.slice(0, 10);
     }
+    
+    // Validate video URL if provided
+    let validVideoUrl: string | null = null;
+    if (videoUrl && typeof videoUrl === 'string' && videoUrl.trim()) {
+      if (isValidVideoUrl(videoUrl)) {
+        validVideoUrl = videoUrl.trim();
+      }
+      // Silently ignore invalid video URLs
+    }
 
     const post = await prisma.post.create({
       data: {
         content,
         images: imageList,
+        videoUrl: validVideoUrl,
         location,
         authorId: req.userId!,
       },
@@ -392,10 +423,10 @@ export const updatePost = async (req: AuthRequest, res: Response): Promise<void>
       connectedUserIds = new Set(connections.map(c => c.connectedId));
     }
 
-    const { location, images } = req.body;
+    const { location, images, videoUrl } = req.body;
     
     // Build update data
-    const updateData: { content?: string; images?: string[]; location?: string | null } = {};
+    const updateData: { content?: string; images?: string[]; videoUrl?: string | null; location?: string | null } = {};
     
     if (content) updateData.content = content;
     if (location !== undefined) updateData.location = location;
@@ -410,6 +441,15 @@ export const updatePost = async (req: AuthRequest, res: Response): Promise<void>
     } else if (image !== undefined) {
       // Backward compat: single image
       updateData.images = image ? [image] : [];
+    }
+    
+    // Handle videoUrl
+    if (videoUrl !== undefined) {
+      if (videoUrl && typeof videoUrl === 'string' && videoUrl.trim() && isValidVideoUrl(videoUrl)) {
+        updateData.videoUrl = videoUrl.trim();
+      } else {
+        updateData.videoUrl = null;
+      }
     }
     
     const post = await prisma.post.update({

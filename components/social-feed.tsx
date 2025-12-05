@@ -34,6 +34,8 @@ import {
   Reply,
   ChevronDown,
   ChevronUp,
+  Play,
+  Video,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -245,6 +247,8 @@ export default function SocialFeed() {
   const [error, setError] = useState<string | null>(null);
   const [postContent, setPostContent] = useState("");
   const [postImages, setPostImages] = useState<string[]>([]);
+  const [postVideoUrl, setPostVideoUrl] = useState("");
+  const [showVideoInput, setShowVideoInput] = useState(false);
   const [postLocation, setPostLocation] = useState("");
   const [showImageModal, setShowImageModal] = useState(false);
   const [imageModalTab, setImageModalTab] = useState<"upload" | "url">(
@@ -301,8 +305,13 @@ export default function SocialFeed() {
     try {
       const token = getToken();
       if (token) {
-        const options: { images?: string[]; location?: string } = {};
+        const options: {
+          images?: string[];
+          videoUrl?: string;
+          location?: string;
+        } = {};
         if (postImages.length > 0) options.images = postImages;
+        if (postVideoUrl.trim()) options.videoUrl = postVideoUrl.trim();
         if (postLocation.trim()) options.location = postLocation.trim();
 
         const newPost = await createPost(
@@ -313,8 +322,10 @@ export default function SocialFeed() {
         setPosts([newPost, ...posts]);
         setPostContent("");
         setPostImages([]);
+        setPostVideoUrl("");
         setPostLocation("");
         setShowImageModal(false);
+        setShowVideoInput(false);
         setShowLocationInput(false);
         toast.success("Post created successfully!");
       }
@@ -716,6 +727,37 @@ export default function SocialFeed() {
                   </div>
                 )}
 
+                {/* Video URL input */}
+                {showVideoInput && (
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      placeholder="Paste YouTube or Vimeo URL..."
+                      value={postVideoUrl}
+                      onChange={(e) => setPostVideoUrl(e.target.value)}
+                      className="flex-1 border-purple-200 dark:border-gray-700"
+                      disabled={!isLoggedIn || isPosting}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowVideoInput(false);
+                        setPostVideoUrl("");
+                      }}
+                      className="text-gray-500"
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                )}
+
+                {/* Video preview */}
+                {postVideoUrl && (
+                  <div className="mt-2">
+                    <VideoEmbed url={postVideoUrl} preview />
+                  </div>
+                )}
+
                 {/* Location input */}
                 {showLocationInput && (
                   <div className="flex gap-2 mt-2">
@@ -741,13 +783,19 @@ export default function SocialFeed() {
                 )}
 
                 {/* Preview badges */}
-                {(postImages.length > 0 || postLocation) && (
+                {(postImages.length > 0 || postVideoUrl || postLocation) && (
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {postImages.length > 0 && (
                       <Badge variant="secondary" className="text-xs">
                         <ImageIcon className="h-3 w-3 mr-1" />
                         {postImages.length} image
                         {postImages.length > 1 ? "s" : ""} attached
+                      </Badge>
+                    )}
+                    {postVideoUrl && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Play className="h-3 w-3 mr-1" />
+                        Video attached
                       </Badge>
                     )}
                     {postLocation && (
@@ -841,6 +889,30 @@ export default function SocialFeed() {
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>Add your location</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 ${
+                              showVideoInput || postVideoUrl
+                                ? "bg-purple-100 dark:bg-purple-900/30"
+                                : ""
+                            }`}
+                            disabled={!isLoggedIn}
+                            onClick={() => setShowVideoInput(!showVideoInput)}
+                          >
+                            <Video className="h-4 w-4 mr-1" />
+                            <span className="text-xs">Video</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Add YouTube or Vimeo video
+                        </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </div>
@@ -1184,6 +1256,145 @@ function CommentItem({
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Video embed component for YouTube and Vimeo
+interface VideoEmbedProps {
+  url: string;
+  preview?: boolean; // Show smaller preview in post creation
+}
+
+function VideoEmbed({ url, preview = false }: VideoEmbedProps) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  const [videoTitle, setVideoTitle] = useState<string>("");
+
+  // Parse video URL and extract video ID and provider
+  const parseVideoUrl = (
+    videoUrl: string
+  ): { provider: "youtube" | "vimeo" | null; videoId: string | null } => {
+    if (!videoUrl) return { provider: null, videoId: null };
+
+    // YouTube patterns
+    const youtubePatterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+    ];
+    for (const pattern of youtubePatterns) {
+      const match = videoUrl.match(pattern);
+      if (match) return { provider: "youtube", videoId: match[1] };
+    }
+
+    // Vimeo patterns
+    const vimeoPatterns = [
+      /vimeo\.com\/(\d+)/,
+      /player\.vimeo\.com\/video\/(\d+)/,
+    ];
+    for (const pattern of vimeoPatterns) {
+      const match = videoUrl.match(pattern);
+      if (match) return { provider: "vimeo", videoId: match[1] };
+    }
+
+    return { provider: null, videoId: null };
+  };
+
+  const { provider, videoId } = parseVideoUrl(url);
+
+  // Get thumbnail URL
+  useEffect(() => {
+    if (!provider || !videoId) return;
+
+    if (provider === "youtube") {
+      // YouTube thumbnails are predictable
+      setThumbnailUrl(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`);
+      setVideoTitle("YouTube Video");
+    } else if (provider === "vimeo") {
+      // Vimeo needs API call for thumbnail
+      fetch(`https://vimeo.com/api/v2/video/${videoId}.json`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data[0]) {
+            setThumbnailUrl(data[0].thumbnail_large);
+            setVideoTitle(data[0].title || "Vimeo Video");
+          }
+        })
+        .catch(() => {
+          setThumbnailUrl(null);
+          setVideoTitle("Vimeo Video");
+        });
+    }
+  }, [provider, videoId]);
+
+  if (!provider || !videoId) {
+    return (
+      <div
+        className={`${
+          preview ? "h-32" : "h-48"
+        } bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center`}
+      >
+        <p className="text-sm text-gray-500">Invalid video URL</p>
+      </div>
+    );
+  }
+
+  const getEmbedUrl = () => {
+    if (provider === "youtube") {
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+    } else if (provider === "vimeo") {
+      return `https://player.vimeo.com/video/${videoId}?autoplay=1`;
+    }
+    return "";
+  };
+
+  const containerClass = preview
+    ? "relative rounded-lg overflow-hidden h-40 bg-black"
+    : "relative rounded-lg overflow-hidden aspect-video bg-black mt-3";
+
+  if (isPlaying) {
+    return (
+      <div className={containerClass}>
+        <iframe
+          src={getEmbedUrl()}
+          className="absolute inset-0 w-full h-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          title={videoTitle}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`${containerClass} cursor-pointer group`}
+      onClick={() => setIsPlaying(true)}
+    >
+      {thumbnailUrl ? (
+        <img
+          src={thumbnailUrl}
+          alt={videoTitle}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gray-800 flex items-center justify-center">
+          <Video className="h-12 w-12 text-gray-400" />
+        </div>
+      )}
+
+      {/* Play button overlay */}
+      <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+        <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+          <Play className="h-8 w-8 text-white fill-white ml-1" />
+        </div>
+      </div>
+
+      {/* Provider badge */}
+      <div className="absolute bottom-2 left-2">
+        <Badge variant="secondary" className="bg-black/70 text-white text-xs">
+          {provider === "youtube" ? "YouTube" : "Vimeo"}
+        </Badge>
       </div>
     </div>
   );
@@ -1748,6 +1959,9 @@ function PostCard({ post, onDelete }: PostCardProps) {
             }
           />
         ) : null}
+
+        {/* Video embed */}
+        {post.videoUrl && <VideoEmbed url={post.videoUrl} />}
       </CardContent>
       {/* Likers Modal */}
       <Dialog open={showLikersModal} onOpenChange={setShowLikersModal}>

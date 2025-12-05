@@ -161,6 +161,7 @@ model Post {
   id        String   @id @default(cuid())
   content   String
   images    String[] @default([])
+  videoUrl  String?  // YouTube or Vimeo URL
   location  String?
   comments  Int      @default(0)
   shares    Int      @default(0)
