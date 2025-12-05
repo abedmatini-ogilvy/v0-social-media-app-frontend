@@ -203,10 +203,10 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-purple-50 to-white p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F0F2F5] p-4">
       <Link
         href="/"
-        className="absolute top-4 left-4 flex items-center text-purple-700 hover:text-purple-900"
+        className="absolute top-4 left-4 flex items-center text-emerald-700 hover:text-emerald-900"
       >
         <ArrowLeft className="h-4 w-4 mr-1" />
         <span>Back to Home</span>
@@ -231,20 +231,20 @@ export default function SignupPage() {
           <TabsList className="grid grid-cols-2 mb-6">
             <TabsTrigger
               value="citizen"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
             >
               Citizen
             </TabsTrigger>
             <TabsTrigger
               value="official"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
             >
               Government Official
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="citizen">
-            <Card className="border-purple-100 shadow-lg">
+            <Card className="border-emerald-100 shadow-lg">
               <form onSubmit={handleCitizenSignup}>
                 <CardHeader>
                   <CardTitle>Create Citizen Account</CardTitle>
@@ -264,7 +264,7 @@ export default function SignupPage() {
                       <Input
                         id="first-name"
                         placeholder="First name"
-                        className="border-purple-200"
+                        className="border-emerald-200"
                         value={citizenFirstName}
                         onChange={(e) => setCitizenFirstName(e.target.value)}
                         disabled={isLoading}
@@ -276,7 +276,7 @@ export default function SignupPage() {
                       <Input
                         id="last-name"
                         placeholder="Last name"
-                        className="border-purple-200"
+                        className="border-emerald-200"
                         value={citizenLastName}
                         onChange={(e) => setCitizenLastName(e.target.value)}
                         disabled={isLoading}
@@ -291,7 +291,7 @@ export default function SignupPage() {
                       id="email"
                       type="email"
                       placeholder="Enter your email"
-                      className="border-purple-200"
+                      className="border-emerald-200"
                       value={citizenEmail}
                       onChange={(e) => setCitizenEmail(e.target.value)}
                       disabled={isLoading}
@@ -305,7 +305,7 @@ export default function SignupPage() {
                       id="mobile"
                       type="tel"
                       placeholder="Enter your mobile number"
-                      className="border-purple-200"
+                      className="border-emerald-200"
                       value={citizenMobile}
                       onChange={(e) => setCitizenMobile(e.target.value)}
                       disabled={isLoading}
@@ -319,7 +319,7 @@ export default function SignupPage() {
                       onValueChange={setCitizenState}
                       disabled={isLoading}
                     >
-                      <SelectTrigger className="border-purple-200">
+                      <SelectTrigger className="border-emerald-200">
                         <SelectValue placeholder="Select your state" />
                       </SelectTrigger>
                       <SelectContent>
@@ -384,7 +384,7 @@ export default function SignupPage() {
                       id="password"
                       type="password"
                       placeholder="Create a password (min 6 characters)"
-                      className="border-purple-200"
+                      className="border-emerald-200"
                       value={citizenPassword}
                       onChange={(e) => setCitizenPassword(e.target.value)}
                       disabled={isLoading}
@@ -406,14 +406,14 @@ export default function SignupPage() {
                       I agree to the{" "}
                       <Link
                         href="/terms"
-                        className="text-purple-700 hover:text-purple-900"
+                        className="text-emerald-700 hover:text-emerald-900"
                       >
                         Terms of Service
                       </Link>{" "}
                       and{" "}
                       <Link
                         href="/privacy"
-                        className="text-purple-700 hover:text-purple-900"
+                        className="text-emerald-700 hover:text-emerald-900"
                       >
                         Privacy Policy
                       </Link>
@@ -423,7 +423,7 @@ export default function SignupPage() {
                 <CardFooter className="flex flex-col space-y-4">
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -439,7 +439,7 @@ export default function SignupPage() {
                     Already have an account?{" "}
                     <Link
                       href="/login"
-                      className="text-purple-700 hover:text-purple-900 font-medium"
+                      className="text-emerald-700 hover:text-emerald-900 font-medium"
                     >
                       Log in
                     </Link>
@@ -450,7 +450,7 @@ export default function SignupPage() {
           </TabsContent>
 
           <TabsContent value="official">
-            <Card className="border-purple-100 shadow-lg">
+            <Card className="border-emerald-100 shadow-lg">
               <form onSubmit={handleOfficialSignup}>
                 <CardHeader>
                   <CardTitle>Government Official Registration</CardTitle>
@@ -470,7 +470,7 @@ export default function SignupPage() {
                       <Input
                         id="official-first-name"
                         placeholder="First name"
-                        className="border-purple-200"
+                        className="border-emerald-200"
                         value={officialFirstName}
                         onChange={(e) => setOfficialFirstName(e.target.value)}
                         disabled={isLoading}
@@ -482,7 +482,7 @@ export default function SignupPage() {
                       <Input
                         id="official-last-name"
                         placeholder="Last name"
-                        className="border-purple-200"
+                        className="border-emerald-200"
                         value={officialLastName}
                         onChange={(e) => setOfficialLastName(e.target.value)}
                         disabled={isLoading}
@@ -497,7 +497,7 @@ export default function SignupPage() {
                       id="official-email"
                       type="email"
                       placeholder="Enter your official email"
-                      className="border-purple-200"
+                      className="border-emerald-200"
                       value={officialEmail}
                       onChange={(e) => setOfficialEmail(e.target.value)}
                       disabled={isLoading}
@@ -512,7 +512,7 @@ export default function SignupPage() {
                       onValueChange={setOfficialDepartment}
                       disabled={isLoading}
                     >
-                      <SelectTrigger className="border-purple-200">
+                      <SelectTrigger className="border-emerald-200">
                         <SelectValue placeholder="Select your department" />
                       </SelectTrigger>
                       <SelectContent>
@@ -542,7 +542,7 @@ export default function SignupPage() {
                     <Input
                       id="employee-id"
                       placeholder="Enter your employee ID"
-                      className="border-purple-200"
+                      className="border-emerald-200"
                       value={officialEmployeeId}
                       onChange={(e) => setOfficialEmployeeId(e.target.value)}
                       disabled={isLoading}
@@ -555,7 +555,7 @@ export default function SignupPage() {
                       id="official-password"
                       type="password"
                       placeholder="Create a password (min 6 characters)"
-                      className="border-purple-200"
+                      className="border-emerald-200"
                       value={officialPassword}
                       onChange={(e) => setOfficialPassword(e.target.value)}
                       disabled={isLoading}
@@ -580,14 +580,14 @@ export default function SignupPage() {
                       I agree to the{" "}
                       <Link
                         href="/terms"
-                        className="text-purple-700 hover:text-purple-900"
+                        className="text-emerald-700 hover:text-emerald-900"
                       >
                         Terms of Service
                       </Link>{" "}
                       and{" "}
                       <Link
                         href="/privacy"
-                        className="text-purple-700 hover:text-purple-900"
+                        className="text-emerald-700 hover:text-emerald-900"
                       >
                         Privacy Policy
                       </Link>
@@ -605,7 +605,7 @@ export default function SignupPage() {
                 <CardFooter className="flex flex-col space-y-4">
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -621,7 +621,7 @@ export default function SignupPage() {
                     Already have an account?{" "}
                     <Link
                       href="/login"
-                      className="text-purple-700 hover:text-purple-900 font-medium"
+                      className="text-emerald-700 hover:text-emerald-900 font-medium"
                     >
                       Log in
                     </Link>

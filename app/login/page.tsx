@@ -68,10 +68,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-purple-50 to-white p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F0F2F5] p-4">
       <Link
         href="/"
-        className="absolute top-4 left-4 flex items-center text-purple-700 hover:text-purple-900"
+        className="absolute top-4 left-4 flex items-center text-emerald-700 hover:text-emerald-900"
       >
         <ArrowLeft className="h-4 w-4 mr-1" />
         <span>Back to Home</span>
@@ -96,20 +96,20 @@ export default function LoginPage() {
           <TabsList className="grid grid-cols-2 mb-6">
             <TabsTrigger
               value="citizen"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
             >
               Citizen
             </TabsTrigger>
             <TabsTrigger
               value="official"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
             >
               Government Official
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="citizen">
-            <Card className="border-purple-100 shadow-lg">
+            <Card className="border-emerald-100 shadow-lg">
               <form onSubmit={handleCitizenLogin}>
                 <CardHeader>
                   <CardTitle>Citizen Login</CardTitle>
@@ -129,7 +129,7 @@ export default function LoginPage() {
                       id="email"
                       type="text"
                       placeholder="Enter your email or mobile number"
-                      className="border-purple-200"
+                      className="border-emerald-200"
                       value={citizenEmail}
                       onChange={(e) => setCitizenEmail(e.target.value)}
                       disabled={isLoading}
@@ -141,7 +141,7 @@ export default function LoginPage() {
                       <Label htmlFor="password">Password</Label>
                       <Link
                         href="/forgot-password"
-                        className="text-xs text-purple-700 hover:text-purple-900"
+                        className="text-xs text-emerald-700 hover:text-emerald-900"
                       >
                         Forgot password?
                       </Link>
@@ -150,7 +150,7 @@ export default function LoginPage() {
                       id="password"
                       type="password"
                       placeholder="Enter your password"
-                      className="border-purple-200"
+                      className="border-emerald-200"
                       value={citizenPassword}
                       onChange={(e) => setCitizenPassword(e.target.value)}
                       disabled={isLoading}
@@ -167,7 +167,7 @@ export default function LoginPage() {
                 <CardFooter className="flex flex-col space-y-4">
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -183,7 +183,7 @@ export default function LoginPage() {
                     Don&apos;t have an account?{" "}
                     <Link
                       href="/signup"
-                      className="text-purple-700 hover:text-purple-900 font-medium"
+                      className="text-emerald-700 hover:text-emerald-900 font-medium"
                     >
                       Sign up
                     </Link>
@@ -194,7 +194,7 @@ export default function LoginPage() {
           </TabsContent>
 
           <TabsContent value="official">
-            <Card className="border-purple-100 shadow-lg">
+            <Card className="border-emerald-100 shadow-lg">
               <form onSubmit={handleOfficialLogin}>
                 <CardHeader>
                   <CardTitle>Government Official Login</CardTitle>
@@ -214,7 +214,7 @@ export default function LoginPage() {
                       id="official-id"
                       type="text"
                       placeholder="Enter your official ID"
-                      className="border-purple-200"
+                      className="border-emerald-200"
                       value={officialId}
                       onChange={(e) => setOfficialId(e.target.value)}
                       disabled={isLoading}
@@ -226,7 +226,7 @@ export default function LoginPage() {
                       <Label htmlFor="official-password">Password</Label>
                       <Link
                         href="/forgot-password"
-                        className="text-xs text-purple-700 hover:text-purple-900"
+                        className="text-xs text-emerald-700 hover:text-emerald-900"
                       >
                         Forgot password?
                       </Link>
@@ -235,7 +235,7 @@ export default function LoginPage() {
                       id="official-password"
                       type="password"
                       placeholder="Enter your password"
-                      className="border-purple-200"
+                      className="border-emerald-200"
                       value={officialPassword}
                       onChange={(e) => setOfficialPassword(e.target.value)}
                       disabled={isLoading}
@@ -255,7 +255,7 @@ export default function LoginPage() {
                 <CardFooter className="flex flex-col space-y-4">
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -271,7 +271,7 @@ export default function LoginPage() {
                     Need verification?{" "}
                     <Link
                       href="/official-verification"
-                      className="text-purple-700 hover:text-purple-900 font-medium"
+                      className="text-emerald-700 hover:text-emerald-900 font-medium"
                     >
                       Get verified
                     </Link>

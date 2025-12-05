@@ -1,13 +1,13 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { FileText, Briefcase, Calendar, Users, UserPlus } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import Link from "next/link"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { FileText, Briefcase, Calendar, Users, UserPlus } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Link from "next/link";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Sample data for suggested connections
 const suggestedConnections = [
@@ -32,34 +32,61 @@ const suggestedConnections = [
     avatar: "/placeholder.svg?height=40&width=40",
     mutualConnections: 2,
   },
-]
+];
 
 // Sample data for schemes
 const schemes = [
   { title: "PM Kisan Samman Nidhi", deadline: "June 30, 2023", isNew: true },
   { title: "Digital Literacy Program", deadline: "Open", isNew: false },
   { title: "Skill India Initiative", deadline: "July 15, 2023", isNew: true },
-]
+];
 
 // Sample data for jobs
 const jobs = [
-  { title: "Digital Marketing Assistant", company: "TechSolutions Ltd", location: "Mumbai", isNew: true },
-  { title: "Community Manager", company: "Local Government", location: "Delhi NCR", isNew: true },
-  { title: "Data Entry Operator", company: "Public Services", location: "Bangalore", isNew: false },
-]
+  {
+    title: "Digital Marketing Assistant",
+    company: "TechSolutions Ltd",
+    location: "Mumbai",
+    isNew: true,
+  },
+  {
+    title: "Community Manager",
+    company: "Local Government",
+    location: "Delhi NCR",
+    isNew: true,
+  },
+  {
+    title: "Data Entry Operator",
+    company: "Public Services",
+    location: "Bangalore",
+    isNew: false,
+  },
+];
 
 // Sample data for events
 const events = [
-  { title: "Digital Literacy Workshop", date: "June 15, 2023", location: "Community Center, Sector 15" },
-  { title: "Public Hearing on Infrastructure", date: "June 20, 2023", location: "Municipal Hall" },
-]
+  {
+    title: "Digital Literacy Workshop",
+    date: "June 15, 2023",
+    location: "Community Center, Sector 15",
+  },
+  {
+    title: "Public Hearing on Infrastructure",
+    date: "June 20, 2023",
+    location: "Municipal Hall",
+  },
+];
 
 export default function MobileSidebar() {
-  const [activeTab, setActiveTab] = useState("connect")
+  const [activeTab, setActiveTab] = useState("connect");
 
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="connect" className="w-full" onValueChange={setActiveTab}>
+      <Tabs
+        defaultValue="connect"
+        className="w-full"
+        onValueChange={setActiveTab}
+      >
         <TabsList className="grid grid-cols-4 mb-4 bg-purple-100 p-1">
           <TabsTrigger
             value="connect"
@@ -98,18 +125,28 @@ export default function MobileSidebar() {
             <CardContent className="pt-4">
               <div className="space-y-4">
                 {suggestedConnections.map((connection) => (
-                  <div key={connection.id} className="flex items-center justify-between">
+                  <div
+                    key={connection.id}
+                    className="flex items-center justify-between"
+                  >
                     <div className="flex items-center gap-3">
                       <Avatar>
-                        <AvatarImage src={connection.avatar || "/placeholder.svg"} alt={connection.name} />
+                        <AvatarImage
+                          src={connection.avatar || "/placeholder.svg"}
+                          alt={connection.name}
+                        />
                         <AvatarFallback className="bg-gradient-to-r from-green-500 to-teal-500 text-white">
                           {connection.name[0]}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <p className="font-medium text-sm">{connection.name}</p>
-                        <p className="text-xs text-gray-500">{connection.role}</p>
-                        <p className="text-xs text-purple-600">{connection.mutualConnections} mutual connections</p>
+                        <p className="text-xs text-gray-500">
+                          {connection.role}
+                        </p>
+                        <p className="text-xs text-purple-600">
+                          {connection.mutualConnections} mutual connections
+                        </p>
                       </div>
                     </div>
                     <Button
@@ -122,7 +159,11 @@ export default function MobileSidebar() {
                     </Button>
                   </div>
                 ))}
-                <Button variant="ghost" size="sm" className="w-full mt-2 text-purple-700 hover:bg-purple-50">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full mt-2 text-purple-700 hover:bg-purple-50"
+                >
                   View More Suggestions
                 </Button>
               </div>
@@ -140,7 +181,12 @@ export default function MobileSidebar() {
             </CardHeader>
             <CardContent className="space-y-3 pt-4">
               {schemes.map((scheme, index) => (
-                <SchemeItem key={index} title={scheme.title} deadline={scheme.deadline} isNew={scheme.isNew} />
+                <SchemeItem
+                  key={index}
+                  title={scheme.title}
+                  deadline={scheme.deadline}
+                  isNew={scheme.isNew}
+                />
               ))}
               <Button
                 variant="outline"
@@ -192,7 +238,12 @@ export default function MobileSidebar() {
             </CardHeader>
             <CardContent className="space-y-3 pt-4">
               {events.map((event, index) => (
-                <EventItem key={index} title={event.title} date={event.date} location={event.location} />
+                <EventItem
+                  key={index}
+                  title={event.title}
+                  date={event.date}
+                  location={event.location}
+                />
               ))}
               <Button
                 variant="outline"
@@ -206,13 +257,13 @@ export default function MobileSidebar() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }
 
 interface SchemeItemProps {
-  title: string
-  deadline: string
-  isNew: boolean
+  title: string;
+  deadline: string;
+  isNew: boolean;
 }
 
 function SchemeItem({ title, deadline, isNew }: SchemeItemProps) {
@@ -223,17 +274,21 @@ function SchemeItem({ title, deadline, isNew }: SchemeItemProps) {
           <p className="font-medium text-sm">{title}</p>
           <p className="text-xs text-gray-500">Deadline: {deadline}</p>
         </div>
-        {isNew && <Badge className="bg-green-100 text-green-800 text-xs border-0">New</Badge>}
+        {isNew && (
+          <Badge className="bg-green-100 text-green-800 text-xs border-0">
+            New
+          </Badge>
+        )}
       </div>
     </div>
-  )
+  );
 }
 
 interface JobItemProps {
-  title: string
-  company: string
-  location: string
-  isNew: boolean
+  title: string;
+  company: string;
+  location: string;
+  isNew: boolean;
 }
 
 function JobItem({ title, company, location, isNew }: JobItemProps) {
@@ -246,16 +301,20 @@ function JobItem({ title, company, location, isNew }: JobItemProps) {
             {company} • {location}
           </p>
         </div>
-        {isNew && <Badge className="bg-green-100 text-green-800 text-xs border-0">New</Badge>}
+        {isNew && (
+          <Badge className="bg-green-100 text-green-800 text-xs border-0">
+            New
+          </Badge>
+        )}
       </div>
     </div>
-  )
+  );
 }
 
 interface EventItemProps {
-  title: string
-  date: string
-  location: string
+  title: string;
+  date: string;
+  location: string;
 }
 
 function EventItem({ title, date, location }: EventItemProps) {
@@ -265,5 +324,5 @@ function EventItem({ title, date, location }: EventItemProps) {
       <p className="text-xs text-gray-500">{date}</p>
       <p className="text-xs text-gray-500">{location}</p>
     </div>
-  )
+  );
 }
