@@ -97,6 +97,7 @@ model User {
   updatedAt  DateTime @updatedAt
 
   posts              Post[]
+  postLikes          PostLike[]
   reportsMade        Report[]       @relation("ReportsMade")
   reportsReviewed    Report[]       @relation("ReportsReviewed")
   announcements      Announcement[]
@@ -161,7 +162,6 @@ model Post {
   content   String
   image     String?
   location  String?
-  likes     Int      @default(0)
   comments  Int      @default(0)
   shares    Int      @default(0)
   authorId  String
@@ -171,8 +171,22 @@ model Post {
 
   commentList Comment[]
   reports     Report[]
+  postLikes   PostLike[]
 
   @@index([authorId])
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([postId])
+  @@index([userId])
 }
 
 model Comment {

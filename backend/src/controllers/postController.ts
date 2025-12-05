@@ -52,32 +52,39 @@ async function processMentions(
 }
 
 // Helper to format post response
-const formatPostResponse = (post: {
-  id: string;
-  content: string;
-  image: string | null;
-  location: string | null;
-  likes: number;
-  comments: number;
-  shares: number;
-  createdAt: Date;
-  author: {
+const formatPostResponse = (
+  post: {
     id: string;
-    name: string;
-    email: string;
-    avatar: string | null;
-    role: string;
-    isVerified: boolean;
+    content: string;
+    image: string | null;
+    location: string | null;
+    comments: number;
+    shares: number;
     createdAt: Date;
-  };
-}) => ({
+    author: {
+      id: string;
+      name: string;
+      email: string;
+      avatar: string | null;
+      role: string;
+      isVerified: boolean;
+      createdAt: Date;
+    };
+    _count?: { postLikes: number };
+    postLikes?: { userId: string }[];
+  },
+  currentUserId?: string
+) => ({
   id: post.id,
   content: post.content,
   image: post.image,
   location: post.location,
-  likes: post.likes,
+  likes: post._count?.postLikes ?? 0,
   comments: post.comments,
   shares: post.shares,
+  isLikedByCurrentUser: currentUserId 
+    ? post.postLikes?.some(like => like.userId === currentUserId) ?? false 
+    : false,
   createdAt: post.createdAt.toISOString(),
   author: {
     id: post.author.id,
@@ -95,6 +102,7 @@ export const getFeed = async (req: AuthRequest, res: Response): Promise<void> =>
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
+    const currentUserId = req.userId;
 
     const posts = await prisma.post.findMany({
       include: {
@@ -109,6 +117,14 @@ export const getFeed = async (req: AuthRequest, res: Response): Promise<void> =>
             createdAt: true,
           },
         },
+        // Include likes by current user to check isLikedByCurrentUser
+        postLikes: currentUserId ? {
+          where: { userId: currentUserId },
+          select: { userId: true },
+        } : false,
+        _count: {
+          select: { postLikes: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
       skip,
@@ -118,7 +134,7 @@ export const getFeed = async (req: AuthRequest, res: Response): Promise<void> =>
     const total = await prisma.post.count();
 
     res.json({
-      posts: posts.map(formatPostResponse),
+      posts: posts.map(post => formatPostResponse(post, currentUserId)),
       pagination: {
         page,
         limit,
@@ -151,6 +167,9 @@ export const getPublicFeed = async (req: Request, res: Response): Promise<void> 
             createdAt: true,
           },
         },
+        _count: {
+          select: { postLikes: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
       skip,
@@ -160,7 +179,7 @@ export const getPublicFeed = async (req: Request, res: Response): Promise<void> 
     const total = await prisma.post.count();
 
     res.json({
-      posts: posts.map(formatPostResponse),
+      posts: posts.map(post => formatPostResponse(post)),
       pagination: {
         page,
         limit,
@@ -176,6 +195,8 @@ export const getPublicFeed = async (req: Request, res: Response): Promise<void> 
 // Get current user's posts
 export const getMyPosts = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const currentUserId = req.userId;
+    
     const posts = await prisma.post.findMany({
       where: { authorId: req.userId },
       include: {
@@ -190,11 +211,18 @@ export const getMyPosts = async (req: AuthRequest, res: Response): Promise<void>
             createdAt: true,
           },
         },
+        postLikes: currentUserId ? {
+          where: { userId: currentUserId },
+          select: { userId: true },
+        } : false,
+        _count: {
+          select: { postLikes: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json(posts.map(formatPostResponse));
+    res.json(posts.map(post => formatPostResponse(post, currentUserId)));
   } catch (error) {
     throw new AppError('Failed to get user posts', 500, 'INTERNAL_ERROR');
   }
@@ -224,6 +252,9 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
             createdAt: true,
           },
         },
+        _count: {
+          select: { postLikes: true },
+        },
       },
     });
 
@@ -233,7 +264,7 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
       : post.author.name;
     await processMentions(content, req.userId!, authorName, post.id, 'post');
 
-    res.status(201).json(formatPostResponse(post));
+    res.status(201).json(formatPostResponse(post, req.userId));
   } catch (error) {
     console.error('Create post error:', error);
     throw new AppError('Failed to create post', 500, 'INTERNAL_ERROR');
@@ -243,6 +274,7 @@ export const createPost = async (req: AuthRequest, res: Response): Promise<void>
 export const getPost = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { postId } = req.params;
+    const currentUserId = req.userId;
 
     const post = await prisma.post.findUnique({
       where: { id: postId },
@@ -258,6 +290,13 @@ export const getPost = async (req: AuthRequest, res: Response): Promise<void> =>
             createdAt: true,
           },
         },
+        postLikes: currentUserId ? {
+          where: { userId: currentUserId },
+          select: { userId: true },
+        } : false,
+        _count: {
+          select: { postLikes: true },
+        },
       },
     });
 
@@ -265,7 +304,7 @@ export const getPost = async (req: AuthRequest, res: Response): Promise<void> =>
       throw new AppError('Post not found', 404, 'NOT_FOUND');
     }
 
-    res.json(formatPostResponse(post));
+    res.json(formatPostResponse(post, currentUserId));
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
@@ -278,6 +317,7 @@ export const updatePost = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const { postId } = req.params;
     const { content, image } = req.body;
+    const currentUserId = req.userId;
 
     // Check if post exists and belongs to user
     const existingPost = await prisma.post.findUnique({
@@ -312,10 +352,17 @@ export const updatePost = async (req: AuthRequest, res: Response): Promise<void>
             createdAt: true,
           },
         },
+        postLikes: currentUserId ? {
+          where: { userId: currentUserId },
+          select: { userId: true },
+        } : false,
+        _count: {
+          select: { postLikes: true },
+        },
       },
     });
 
-    res.json(formatPostResponse(post));
+    res.json(formatPostResponse(post, currentUserId));
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
@@ -357,12 +404,36 @@ export const deletePost = async (req: AuthRequest, res: Response): Promise<void>
 export const likePost = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { postId } = req.params;
+    const userId = req.userId!;
 
-    // For MVP, we use simple counter increment
-    // In production, you'd track individual likes in a separate table
-    const post = await prisma.post.update({
+    // Check if post exists
+    const post = await prisma.post.findUnique({
       where: { id: postId },
-      data: { likes: { increment: 1 } },
+    });
+
+    if (!post) {
+      throw new AppError('Post not found', 404, 'NOT_FOUND');
+    }
+
+    // Check if user already liked this post
+    const existingLike = await prisma.postLike.findUnique({
+      where: {
+        userId_postId: { userId, postId },
+      },
+    });
+
+    if (existingLike) {
+      throw new AppError('You have already liked this post', 400, 'ALREADY_LIKED');
+    }
+
+    // Create the like
+    await prisma.postLike.create({
+      data: { userId, postId },
+    });
+
+    // Fetch the updated post with like count
+    const updatedPost = await prisma.post.findUnique({
+      where: { id: postId },
       include: {
         author: {
           select: {
@@ -375,11 +446,21 @@ export const likePost = async (req: AuthRequest, res: Response): Promise<void> =
             createdAt: true,
           },
         },
+        postLikes: {
+          where: { userId },
+          select: { userId: true },
+        },
+        _count: {
+          select: { postLikes: true },
+        },
       },
     });
 
-    res.json(formatPostResponse(post));
+    res.json(formatPostResponse(updatedPost!, userId));
   } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
     throw new AppError('Failed to like post', 500, 'INTERNAL_ERROR');
   }
 };
@@ -387,22 +468,38 @@ export const likePost = async (req: AuthRequest, res: Response): Promise<void> =
 export const unlikePost = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { postId } = req.params;
+    const userId = req.userId!;
 
-    // First get current post to check likes count
-    const currentPost = await prisma.post.findUnique({
+    // Check if post exists
+    const post = await prisma.post.findUnique({
       where: { id: postId },
     });
 
-    if (!currentPost) {
+    if (!post) {
       throw new AppError('Post not found', 404, 'NOT_FOUND');
     }
 
-    // Only decrement if likes > 0 to prevent negative values
-    const newLikes = Math.max(0, currentPost.likes - 1);
-    
-    const post = await prisma.post.update({
+    // Check if user has liked this post
+    const existingLike = await prisma.postLike.findUnique({
+      where: {
+        userId_postId: { userId, postId },
+      },
+    });
+
+    if (!existingLike) {
+      throw new AppError('You have not liked this post', 400, 'NOT_LIKED');
+    }
+
+    // Delete the like
+    await prisma.postLike.delete({
+      where: {
+        userId_postId: { userId, postId },
+      },
+    });
+
+    // Fetch the updated post with like count
+    const updatedPost = await prisma.post.findUnique({
       where: { id: postId },
-      data: { likes: newLikes },
       include: {
         author: {
           select: {
@@ -415,15 +512,82 @@ export const unlikePost = async (req: AuthRequest, res: Response): Promise<void>
             createdAt: true,
           },
         },
+        postLikes: {
+          where: { userId },
+          select: { userId: true },
+        },
+        _count: {
+          select: { postLikes: true },
+        },
       },
     });
 
-    res.json(formatPostResponse(post));
+    res.json(formatPostResponse(updatedPost!, userId));
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
     }
     throw new AppError('Failed to unlike post', 500, 'INTERNAL_ERROR');
+  }
+};
+
+// Get list of users who liked a post
+export const getPostLikers = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { postId } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+
+    // Check if post exists
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      throw new AppError('Post not found', 404, 'NOT_FOUND');
+    }
+
+    // Get likers with pagination
+    const [likers, total] = await Promise.all([
+      prisma.postLike.findMany({
+        where: { postId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              handle: true,
+              avatar: true,
+              role: true,
+              isVerified: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.postLike.count({ where: { postId } }),
+    ]);
+
+    res.json({
+      likers: likers.map(like => ({
+        ...like.user,
+        likedAt: like.createdAt.toISOString(),
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError('Failed to get post likers', 500, 'INTERNAL_ERROR');
   }
 };
 

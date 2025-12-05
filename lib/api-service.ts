@@ -48,6 +48,7 @@ export const API_ENDPOINTS = {
     CONNECT: (userId: string) => `${API_BASE_URL}/users/connect/${userId}`,
     DISCONNECT: (userId: string) => `${API_BASE_URL}/users/disconnect/${userId}`,
     SUGGESTED_CONNECTIONS: `${API_BASE_URL}/users/suggested-connections`,
+    SEARCH_MENTIONS: `${API_BASE_URL}/users/search-mentions`,
     SETTINGS: `${API_BASE_URL}/users/settings`,
   },
 
@@ -68,6 +69,7 @@ export const API_ENDPOINTS = {
     DELETE: (postId: string) => `${API_BASE_URL}/posts/${postId}`,
     LIKE: (postId: string) => `${API_BASE_URL}/posts/${postId}/like`,
     UNLIKE: (postId: string) => `${API_BASE_URL}/posts/${postId}/unlike`,
+    LIKERS: (postId: string) => `${API_BASE_URL}/posts/${postId}/likers`,
     COMMENTS: (postId: string) => `${API_BASE_URL}/posts/${postId}/comments`,
     ADD_COMMENT: (postId: string) => `${API_BASE_URL}/posts/${postId}/comments`,
   },
@@ -260,6 +262,26 @@ export async function changePassword(token: string, currentPassword: string, new
   return apiRequest<{ message: string }>(API_ENDPOINTS.USER.CHANGE_PASSWORD, "PUT", { currentPassword, newPassword }, token)
 }
 
+// Search connected users for @mention autocomplete
+export interface MentionUser {
+  id: string
+  name: string
+  handle: string | null
+  avatar: string | null
+  role: string
+  isVerified: boolean
+}
+
+export async function searchMentions(query: string, token: string): Promise<MentionUser[]> {
+  if (!query.trim()) return []
+  return apiRequest<MentionUser[]>(
+    `${API_ENDPOINTS.USER.SEARCH_MENTIONS}?q=${encodeURIComponent(query)}`,
+    "GET",
+    undefined,
+    token
+  )
+}
+
 // ==================== POSTS API ====================
 
 export async function getPostsFeed(token: string): Promise<Post[]> {
@@ -317,6 +339,34 @@ export async function likePost(postId: string, token: string): Promise<void> {
 
 export async function unlikePost(postId: string, token: string): Promise<void> {
   return apiRequest<void>(API_ENDPOINTS.POSTS.UNLIKE(postId), "DELETE", undefined, token)
+}
+
+// Get users who liked a post
+export interface PostLikersResponse {
+  likers: Array<{
+    id: string
+    name: string
+    handle?: string | null
+    avatar?: string | null
+    role: string
+    isVerified: boolean
+    likedAt: string
+  }>
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
+export async function getPostLikers(postId: string, token: string, page = 1, limit = 20): Promise<PostLikersResponse> {
+  return apiRequest<PostLikersResponse>(
+    `${API_ENDPOINTS.POSTS.LIKERS(postId)}?page=${page}&limit=${limit}`,
+    "GET",
+    undefined,
+    token
+  )
 }
 
 export async function getPostComments(postId: string, token: string): Promise<Comment[]> {

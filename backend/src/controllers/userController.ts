@@ -409,3 +409,58 @@ export const updateSettings = async (req: AuthRequest, res: Response): Promise<v
     throw new AppError('Failed to update settings', 500, 'INTERNAL_ERROR');
   }
 };
+
+// Search connected users for @mentions autocomplete
+export const searchMentions = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { q } = req.query;
+    const query = typeof q === 'string' ? q.trim().toLowerCase() : '';
+
+    if (!query) {
+      res.json([]);
+      return;
+    }
+
+    // Get user's connections first
+    const connections = await prisma.connection.findMany({
+      where: { userId: req.userId },
+      select: { connectedId: true },
+    });
+
+    const connectedIds = connections.map((c) => c.connectedId);
+
+    if (connectedIds.length === 0) {
+      res.json([]);
+      return;
+    }
+
+    // Search connected users by handle or name
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: connectedIds },
+        OR: [
+          { handle: { contains: query, mode: 'insensitive' } },
+          { name: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      take: 10,
+      select: {
+        id: true,
+        name: true,
+        handle: true,
+        avatar: true,
+        role: true,
+        isVerified: true,
+      },
+      orderBy: [
+        // Prioritize exact handle matches
+        { handle: 'asc' },
+        { name: 'asc' },
+      ],
+    });
+
+    res.json(users);
+  } catch (error) {
+    throw new AppError('Failed to search users for mentions', 500, 'INTERNAL_ERROR');
+  }
+};

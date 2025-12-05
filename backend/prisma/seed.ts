@@ -18,6 +18,7 @@ async function main() {
   await prisma.report.deleteMany();
   await prisma.announcement.deleteMany();
   await prisma.comment.deleteMany();
+  await prisma.postLike.deleteMany();
   await prisma.post.deleteMany();
   await prisma.event.deleteMany();
   await prisma.job.deleteMany();
@@ -305,7 +306,6 @@ async function main() {
         content:
           'Great news! Our village road construction project has been approved under PMGSY. Work will begin next month. 🎉',
         authorId: municipal!.id,
-        likes: 45,
         comments: 12,
         shares: 8,
       },
@@ -315,7 +315,6 @@ async function main() {
         content:
           'Just received my PM Kisan installment! The process was smooth through the CSC center. Thank you government! 🙏',
         authorId: priya!.id,
-        likes: 23,
         comments: 5,
         shares: 3,
       },
@@ -325,7 +324,6 @@ async function main() {
         content:
           'Reminder: Gram Sabha meeting tomorrow at 10 AM. Important discussion on water supply project. Please attend! 📢',
         authorId: municipal!.id,
-        likes: 18,
         comments: 7,
         shares: 15,
       },
@@ -335,7 +333,6 @@ async function main() {
         content:
           'Completed my skill training in computer basics at the CSC! Looking forward to new opportunities. Never too late to learn! 💪',
         authorId: raj!.id,
-        likes: 67,
         comments: 14,
         shares: 5,
       },
@@ -345,11 +342,35 @@ async function main() {
         content:
           'Health camp was very successful! We screened 200+ patients. Early detection of 15 diabetes cases. Prevention is better than cure! 🏥',
         authorId: health!.id,
-        likes: 89,
         comments: 21,
         shares: 34,
       },
     }),
+  ]);
+
+  // Create post likes
+  console.log('❤️ Creating post likes...');
+  await Promise.all([
+    // Likes on first post (road construction)
+    prisma.postLike.create({ data: { userId: priya!.id, postId: posts[0]!.id } }),
+    prisma.postLike.create({ data: { userId: raj!.id, postId: posts[0]!.id } }),
+    prisma.postLike.create({ data: { userId: anita!.id, postId: posts[0]!.id } }),
+    prisma.postLike.create({ data: { userId: health!.id, postId: posts[0]!.id } }),
+    // Likes on second post (PM Kisan)
+    prisma.postLike.create({ data: { userId: raj!.id, postId: posts[1]!.id } }),
+    prisma.postLike.create({ data: { userId: municipal!.id, postId: posts[1]!.id } }),
+    // Likes on third post (Gram Sabha)
+    prisma.postLike.create({ data: { userId: priya!.id, postId: posts[2]!.id } }),
+    prisma.postLike.create({ data: { userId: anita!.id, postId: posts[2]!.id } }),
+    // Likes on fourth post (skill training)
+    prisma.postLike.create({ data: { userId: priya!.id, postId: posts[3]!.id } }),
+    prisma.postLike.create({ data: { userId: municipal!.id, postId: posts[3]!.id } }),
+    prisma.postLike.create({ data: { userId: anita!.id, postId: posts[3]!.id } }),
+    prisma.postLike.create({ data: { userId: health!.id, postId: posts[3]!.id } }),
+    // Likes on fifth post (health camp)
+    prisma.postLike.create({ data: { userId: priya!.id, postId: posts[4]!.id } }),
+    prisma.postLike.create({ data: { userId: raj!.id, postId: posts[4]!.id } }),
+    prisma.postLike.create({ data: { userId: municipal!.id, postId: posts[4]!.id } }),
   ]);
 
   // Create comments on posts with replies
@@ -522,6 +543,7 @@ async function main() {
   console.log(`   Jobs: ${jobs.length}`);
   console.log(`   Events: ${events.length}`);
   console.log(`   Posts: ${posts.length}`);
+  console.log(`   Post Likes: 15`);
   console.log('\n🔑 Admin Credentials:');
   console.log('   Email: admin@civicconnect.com');
   console.log('   Password: Admin@123456');

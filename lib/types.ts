@@ -96,10 +96,22 @@ export interface Post {
   likes: number
   comments: number
   shares: number
+  isLikedByCurrentUser?: boolean
   authorId: string
   author: User
   createdAt: string
   updatedAt?: string
+}
+
+// Post liker (user who liked a post)
+export interface PostLiker {
+  id: string
+  name: string
+  handle?: string | null
+  avatar?: string | null
+  role: UserRole
+  isVerified: boolean
+  likedAt: string
 }
 
 // Comment model

@@ -37,6 +37,9 @@ router.post('/connect/:userId', asyncHandler(userController.connect));
 router.delete('/disconnect/:userId', asyncHandler(userController.disconnect));
 router.get('/suggested-connections', asyncHandler(userController.getSuggestedConnections));
 
+// Mention autocomplete - search connected users by handle or name
+router.get('/search-mentions', asyncHandler(userController.searchMentions));
+
 // Settings routes
 router.get('/settings', asyncHandler(userController.getSettings));
 router.put('/settings', asyncHandler(userController.updateSettings));

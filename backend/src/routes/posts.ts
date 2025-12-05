@@ -42,6 +42,7 @@ router.put('/:postId', validate(updatePostValidation), asyncHandler(postControll
 router.delete('/:postId', asyncHandler(postController.deletePost));
 router.post('/:postId/like', asyncHandler(postController.likePost));
 router.delete('/:postId/unlike', asyncHandler(postController.unlikePost));
+router.get('/:postId/likers', asyncHandler(postController.getPostLikers));
 router.get('/:postId/comments', asyncHandler(postController.getComments));
 router.post('/:postId/comments', validate(commentValidation), asyncHandler(postController.addComment));
 

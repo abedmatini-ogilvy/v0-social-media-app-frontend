@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -61,12 +60,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth-provider";
+import { MentionInput } from "@/components/mention-input";
 import {
   getPostsFeed,
   getPublicFeed,
   createPost,
   likePost,
   unlikePost,
+  getPostLikers,
   getPostComments,
   addComment,
   addReply,
@@ -76,7 +77,7 @@ import {
   uploadImage,
 } from "@/lib/api-service";
 import { getToken } from "@/lib/auth-service";
-import type { Post, Comment } from "@/lib/types";
+import type { Post, Comment, PostLiker } from "@/lib/types";
 import { toast } from "sonner";
 
 // Common emojis for the picker
@@ -593,12 +594,14 @@ export default function SocialFeed() {
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <Textarea
-                  placeholder="Share updates or ask a question..."
-                  className="resize-none border-purple-200 dark:border-gray-700 focus-visible:ring-purple-400"
+                <MentionInput
+                  variant="textarea"
+                  placeholder="Share updates or ask a question... (use @ to mention)"
+                  className="border-purple-200 dark:border-gray-700 focus-visible:ring-purple-400"
                   value={postContent}
-                  onChange={(e) => setPostContent(e.target.value)}
+                  onChange={setPostContent}
                   disabled={isPosting}
+                  rows={3}
                 />
 
                 {/* Image preview */}
@@ -988,10 +991,10 @@ function CommentItem({
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 flex gap-2">
-                <Input
+                <MentionInput
                   placeholder="Write a reply..."
                   value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
+                  onChange={setReplyContent}
                   className="flex-1 h-7 text-sm"
                   disabled={isPostingReply}
                   autoFocus
@@ -1059,7 +1062,8 @@ interface PostCardProps {
 }
 
 function PostCard({ post, onDelete }: PostCardProps) {
-  const [liked, setLiked] = useState(false);
+  // Initialize liked state from server data (persists across refresh!)
+  const [liked, setLiked] = useState(post.isLikedByCurrentUser ?? false);
   const [likeCount, setLikeCount] = useState(post.likes);
   const [following, setFollowing] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -1071,10 +1075,54 @@ function PostCard({ post, onDelete }: PostCardProps) {
   const [newComment, setNewComment] = useState("");
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
+  // Likers state
+  const [showLikersModal, setShowLikersModal] = useState(false);
+  const [likers, setLikers] = useState<PostLiker[]>([]);
+  const [isLoadingLikers, setIsLoadingLikers] = useState(false);
+  const [likersPreview, setLikersPreview] = useState<PostLiker[]>([]);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const { isLoggedIn, user } = useAuth();
 
   const isOfficial = post.author.role === "official";
   const isOwnPost = user?.id === post.authorId || user?.id === post.author?.id;
+
+  // Fetch likers preview for tooltip (first 3 likers)
+  const fetchLikersPreview = async () => {
+    if (likersPreview.length > 0 || isLoadingPreview || likeCount === 0) return;
+
+    setIsLoadingPreview(true);
+    try {
+      const token = getToken();
+      if (token) {
+        const response = await getPostLikers(post.id, token, 1, 3);
+        setLikersPreview(response.likers as PostLiker[]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch likers preview:", err);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
+  // Fetch all likers for modal
+  const fetchAllLikers = async () => {
+    if (likeCount === 0) return;
+
+    setIsLoadingLikers(true);
+    setShowLikersModal(true);
+    try {
+      const token = getToken();
+      if (token) {
+        const response = await getPostLikers(post.id, token, 1, 50);
+        setLikers(response.likers as PostLiker[]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch likers:", err);
+      toast.error("Failed to load likers");
+    } finally {
+      setIsLoadingLikers(false);
+    }
+  };
 
   const handleToggleComments = async () => {
     if (!showComments && comments.length === 0) {
@@ -1341,22 +1389,140 @@ function PostCard({ post, onDelete }: PostCardProps) {
           </div>
         )}
       </CardContent>
+      {/* Likers Modal */}
+      <Dialog open={showLikersModal} onOpenChange={setShowLikersModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-red-500 fill-red-500" />
+              People who liked this ({likeCount})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[400px] overflow-y-auto">
+            {isLoadingLikers ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              </div>
+            ) : likers.length > 0 ? (
+              <div className="space-y-3">
+                {likers.map((liker) => (
+                  <div
+                    key={liker.id}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={liker.avatar || "/placeholder.svg"} />
+                      <AvatarFallback>{liker.name[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium text-sm truncate">
+                          {liker.name}
+                        </span>
+                        {liker.isVerified && (
+                          <CheckCircle className="h-3.5 w-3.5 text-blue-500 fill-blue-500 shrink-0" />
+                        )}
+                      </div>
+                      {liker.handle && (
+                        <span className="text-xs text-gray-500">
+                          @{liker.handle}
+                        </span>
+                      )}
+                    </div>
+                    <Badge variant="outline" className="text-xs shrink-0">
+                      {liker.role}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-500 py-8">No likes yet</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <CardFooter className="pt-0 pb-2 flex-col">
         <div className="flex justify-between w-full text-gray-500 dark:text-gray-400">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`flex items-center gap-1 ${
-              liked ? "text-red-500" : ""
-            } hover:bg-red-50 dark:hover:bg-red-950`}
-            onClick={handleLike}
-            disabled={isLiking}
-          >
-            <Heart
-              className={`h-4 w-4 ${liked ? "fill-red-500 text-red-500" : ""}`}
-            />
-            <span>{likeCount}</span>
-          </Button>
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`flex items-center gap-1 ${
+                liked ? "text-red-500" : ""
+              } hover:bg-red-50 dark:hover:bg-red-950`}
+              onClick={handleLike}
+              disabled={isLiking}
+            >
+              <Heart
+                className={`h-4 w-4 ${
+                  liked ? "fill-red-500 text-red-500" : ""
+                }`}
+              />
+            </Button>
+            {/* Like count with tooltip and click to open modal */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="text-sm hover:text-red-500 hover:underline cursor-pointer transition-colors"
+                  onMouseEnter={fetchLikersPreview}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (likeCount > 0 && isLoggedIn) {
+                      fetchAllLikers();
+                    }
+                  }}
+                  disabled={likeCount === 0}
+                >
+                  {likeCount}
+                </button>
+              </PopoverTrigger>
+              {likeCount > 0 && isLoggedIn && (
+                <PopoverContent className="w-48 p-2" align="start">
+                  {isLoadingPreview ? (
+                    <div className="flex items-center justify-center py-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  ) : likersPreview.length > 0 ? (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-gray-500 mb-2">
+                        Liked by:
+                      </p>
+                      {likersPreview.map((liker) => (
+                        <div
+                          key={liker.id}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <Avatar className="h-5 w-5">
+                            <AvatarImage
+                              src={liker.avatar || "/placeholder.svg"}
+                            />
+                            <AvatarFallback className="text-[10px]">
+                              {liker.name[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="truncate">{liker.name}</span>
+                        </div>
+                      ))}
+                      {likeCount > 3 && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          and {likeCount - 3} more...
+                        </p>
+                      )}
+                      <p
+                        className="text-xs text-purple-600 mt-2 cursor-pointer hover:underline"
+                        onClick={fetchAllLikers}
+                      >
+                        Click to see all
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">Loading...</p>
+                  )}
+                </PopoverContent>
+              )}
+            </Popover>
+          </div>
           <Button
             variant="ghost"
             size="sm"
@@ -1393,10 +1559,10 @@ function PostCard({ post, onDelete }: PostCardProps) {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 flex gap-2">
-                  <Input
-                    placeholder="Write a comment..."
+                  <MentionInput
+                    placeholder="Write a comment... (use @ to mention)"
                     value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
+                    onChange={setNewComment}
                     className="flex-1 h-8 text-sm"
                     disabled={isPostingComment}
                     onKeyDown={(e) => {
