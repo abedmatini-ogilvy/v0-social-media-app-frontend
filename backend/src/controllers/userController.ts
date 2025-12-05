@@ -206,7 +206,13 @@ export const connect = async (req: AuthRequest, res: Response): Promise<void> =>
       throw new AppError('User not found', 404, 'NOT_FOUND');
     }
 
-    // Check if already connected
+    // Get current user for notification
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { name: true },
+    });
+
+    // Check if already connected (either direction)
     const existingConnection = await prisma.connection.findUnique({
       where: {
         userId_connectedId: {
@@ -220,12 +226,36 @@ export const connect = async (req: AuthRequest, res: Response): Promise<void> =>
       throw new AppError('Already connected', 409, 'CONFLICT');
     }
 
-    // Create connection
-    await prisma.connection.create({
-      data: {
-        userId: req.userId!,
-        connectedId: targetUserId,
-      },
+    // Create BIDIRECTIONAL connections in a transaction
+    // When User A connects to User B, both connections are created
+    await prisma.$transaction(async (tx) => {
+      // Create connection from current user to target user
+      await tx.connection.create({
+        data: {
+          userId: req.userId!,
+          connectedId: targetUserId,
+        },
+      });
+
+      // Check if reverse connection already exists
+      const reverseConnection = await tx.connection.findUnique({
+        where: {
+          userId_connectedId: {
+            userId: targetUserId,
+            connectedId: req.userId!,
+          },
+        },
+      });
+
+      // Create reverse connection if it doesn't exist (bidirectional)
+      if (!reverseConnection) {
+        await tx.connection.create({
+          data: {
+            userId: targetUserId,
+            connectedId: req.userId!,
+          },
+        });
+      }
     });
 
     // Create notification for target user
@@ -233,7 +263,7 @@ export const connect = async (req: AuthRequest, res: Response): Promise<void> =>
       data: {
         type: 'connection',
         title: 'New Connection',
-        content: `Someone has connected with you`,
+        content: `${currentUser?.name || 'Someone'} has connected with you`,
         userId: targetUserId,
       },
     });
@@ -255,13 +285,23 @@ export const disconnect = async (req: AuthRequest, res: Response): Promise<void>
       throw new AppError('User ID is required', 400, 'VALIDATION_ERROR');
     }
 
-    await prisma.connection.delete({
-      where: {
-        userId_connectedId: {
+    // Delete BOTH connections in a transaction (bidirectional disconnect)
+    await prisma.$transaction(async (tx) => {
+      // Delete connection from current user to target
+      await tx.connection.deleteMany({
+        where: {
           userId: req.userId!,
           connectedId: targetUserId,
         },
-      },
+      });
+
+      // Delete reverse connection from target to current user
+      await tx.connection.deleteMany({
+        where: {
+          userId: targetUserId,
+          connectedId: req.userId!,
+        },
+      });
     });
 
     res.json({ message: 'Disconnected successfully' });

@@ -16,14 +16,18 @@ router.use(authenticate);
 // Create post validation
 const createPostValidation = [
   body('content').trim().notEmpty().withMessage('Content is required'),
-  body('image').optional(),
+  body('image').optional(), // Backward compatibility - single image
+  body('images').optional().isArray({ max: 10 }).withMessage('Images must be an array with max 10 items'),
+  body('images.*').optional().isString().withMessage('Each image must be a string URL'),
   body('location').optional().trim(),
 ];
 
 // Update post validation
 const updatePostValidation = [
   body('content').optional().trim().notEmpty().withMessage('Content cannot be empty'),
-  body('image').optional(),
+  body('image').optional(), // Backward compatibility - single image
+  body('images').optional().isArray({ max: 10 }).withMessage('Images must be an array with max 10 items'),
+  body('images.*').optional().isString().withMessage('Each image must be a string URL'),
   body('location').optional().trim(),
 ];
 

@@ -60,6 +60,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth-provider";
+import { useConnections } from "@/components/connection-provider";
 import { MentionInput } from "@/components/mention-input";
 import {
   getPostsFeed,
@@ -71,8 +72,6 @@ import {
   getPostComments,
   addComment,
   addReply,
-  connectWithUser,
-  disconnectFromUser,
   deletePost,
   uploadImage,
 } from "@/lib/api-service";
@@ -245,7 +244,7 @@ export default function SocialFeed() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [postContent, setPostContent] = useState("");
-  const [postImage, setPostImage] = useState("");
+  const [postImages, setPostImages] = useState<string[]>([]);
   const [postLocation, setPostLocation] = useState("");
   const [showImageModal, setShowImageModal] = useState(false);
   const [imageModalTab, setImageModalTab] = useState<"upload" | "url">(
@@ -253,10 +252,13 @@ export default function SocialFeed() {
   );
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [dragActive, setDragActive] = useState(false);
   const [showLocationInput, setShowLocationInput] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const { user, isLoggedIn } = useAuth();
+
+  const MAX_IMAGES = 10;
 
   const fetchPosts = useCallback(async () => {
     setIsLoading(true);
@@ -299,8 +301,8 @@ export default function SocialFeed() {
     try {
       const token = getToken();
       if (token) {
-        const options: { image?: string; location?: string } = {};
-        if (postImage.trim()) options.image = postImage.trim();
+        const options: { images?: string[]; location?: string } = {};
+        if (postImages.length > 0) options.images = postImages;
         if (postLocation.trim()) options.location = postLocation.trim();
 
         const newPost = await createPost(
@@ -310,7 +312,7 @@ export default function SocialFeed() {
         );
         setPosts([newPost, ...posts]);
         setPostContent("");
-        setPostImage("");
+        setPostImages([]);
         setPostLocation("");
         setShowImageModal(false);
         setShowLocationInput(false);
@@ -332,11 +334,25 @@ export default function SocialFeed() {
     setPosts(posts.filter((post) => post.id !== postId));
   };
 
-  // Image upload handlers
-  const handleFileUpload = async (file: File) => {
-    if (!file) return;
+  // Image upload handlers - supports multiple files
+  const handleFileUpload = async (files: FileList | File[]) => {
+    if (!files || files.length === 0) return;
 
-    // Validate file type
+    const fileArray = Array.from(files);
+    const remainingSlots = MAX_IMAGES - postImages.length;
+
+    if (remainingSlots <= 0) {
+      toast.error(`Maximum ${MAX_IMAGES} images allowed per post`);
+      return;
+    }
+
+    const filesToUpload = fileArray.slice(0, remainingSlots);
+
+    if (fileArray.length > remainingSlots) {
+      toast.warning(`Only ${remainingSlots} more image(s) can be added`);
+    }
+
+    // Validate all files
     const allowedTypes = [
       "image/jpeg",
       "image/jpg",
@@ -344,20 +360,24 @@ export default function SocialFeed() {
       "image/gif",
       "image/webp",
     ];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error(
-        "Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed."
-      );
-      return;
-    }
 
-    // Validate file size (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("File too large. Maximum size is 10MB.");
-      return;
-    }
+    const validFiles = filesToUpload.filter((file) => {
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`${file.name}: Invalid file type`);
+        return false;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name}: File too large (max 10MB)`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length === 0) return;
 
     setIsUploading(true);
+    setUploadProgress(0);
+
     try {
       const token = getToken();
       if (!token) {
@@ -365,17 +385,37 @@ export default function SocialFeed() {
         return;
       }
 
-      const response = await uploadImage(file, token);
-      setPostImage(response.url);
-      setShowImageModal(false);
-      toast.success("Image uploaded successfully!");
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < validFiles.length; i++) {
+        const file = validFiles[i];
+        setUploadProgress(Math.round((i / validFiles.length) * 100));
+
+        try {
+          const response = await uploadImage(file, token);
+          uploadedUrls.push(response.url);
+        } catch (err) {
+          console.error(`Failed to upload ${file.name}:`, err);
+          toast.error(`Failed to upload ${file.name}`);
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        setPostImages((prev) => [...prev, ...uploadedUrls]);
+        toast.success(`${uploadedUrls.length} image(s) uploaded successfully!`);
+      }
+
+      if (uploadedUrls.length === validFiles.length) {
+        setShowImageModal(false);
+      }
     } catch (err) {
-      console.error("Failed to upload image:", err);
+      console.error("Failed to upload images:", err);
       toast.error(
-        err instanceof Error ? err.message : "Failed to upload image"
+        err instanceof Error ? err.message : "Failed to upload images"
       );
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -394,28 +434,32 @@ export default function SocialFeed() {
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileUpload(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileUpload(e.dataTransfer.files);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFileUpload(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      handleFileUpload(e.target.files);
     }
   };
 
   const handleUrlSubmit = () => {
     if (imageUrlInput.trim()) {
-      setPostImage(imageUrlInput.trim());
+      if (postImages.length >= MAX_IMAGES) {
+        toast.error(`Maximum ${MAX_IMAGES} images allowed per post`);
+        return;
+      }
+      setPostImages((prev) => [...prev, imageUrlInput.trim()]);
       setImageUrlInput("");
       setShowImageModal(false);
       toast.success("Image URL added!");
     }
   };
 
-  const removeImage = () => {
-    setPostImage("");
+  const removeImage = (index: number) => {
+    setPostImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Loading skeleton
@@ -472,7 +516,9 @@ export default function SocialFeed() {
       <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Photo</DialogTitle>
+            <DialogTitle>
+              Add Photos ({postImages.length}/{MAX_IMAGES})
+            </DialogTitle>
           </DialogHeader>
 
           {/* Tabs */}
@@ -518,13 +564,21 @@ export default function SocialFeed() {
                 {isUploading ? (
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-                    <p className="text-sm text-gray-500">Uploading...</p>
+                    <p className="text-sm text-gray-500">
+                      Uploading... {uploadProgress}%
+                    </p>
+                    <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                      <div
+                        className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
                   </div>
                 ) : (
                   <>
                     <Upload className="h-10 w-10 mx-auto text-gray-400 mb-3" />
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      Drag and drop an image here, or
+                      Drag and drop images here, or
                     </p>
                     <label className="cursor-pointer">
                       <span className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm">
@@ -534,11 +588,13 @@ export default function SocialFeed() {
                         type="file"
                         className="hidden"
                         accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                        multiple
                         onChange={handleFileSelect}
                       />
                     </label>
                     <p className="text-xs text-gray-400 mt-3">
-                      JPEG, PNG, GIF, WebP • Max 10MB
+                      JPEG, PNG, GIF, WebP • Max 10MB each • Up to{" "}
+                      {MAX_IMAGES - postImages.length} more
                     </p>
                   </>
                 )}
@@ -604,25 +660,59 @@ export default function SocialFeed() {
                   rows={3}
                 />
 
-                {/* Image preview */}
-                {postImage && (
-                  <div className="relative mt-2 rounded-lg overflow-hidden border border-purple-200 dark:border-gray-700">
-                    <img
-                      src={postImage}
-                      alt="Post preview"
-                      className="w-full h-40 object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/placeholder.svg";
-                      }}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={removeImage}
-                      className="absolute top-2 right-2 h-8 w-8 bg-black/50 hover:bg-black/70 text-white rounded-full"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                {/* Multiple images preview */}
+                {postImages.length > 0 && (
+                  <div
+                    className="mt-2 grid gap-2"
+                    style={{
+                      gridTemplateColumns:
+                        postImages.length === 1
+                          ? "1fr"
+                          : postImages.length === 2
+                          ? "repeat(2, 1fr)"
+                          : postImages.length === 3
+                          ? "repeat(3, 1fr)"
+                          : "repeat(2, 1fr)",
+                    }}
+                  >
+                    {postImages.slice(0, 4).map((img, index) => (
+                      <div
+                        key={index}
+                        className={`relative rounded-lg overflow-hidden border border-purple-200 dark:border-gray-700 ${
+                          postImages.length === 3 && index === 0
+                            ? "col-span-3"
+                            : ""
+                        } ${postImages.length >= 4 && index >= 2 ? "" : ""}`}
+                      >
+                        <img
+                          src={img}
+                          alt={`Preview ${index + 1}`}
+                          className={`w-full object-cover ${
+                            postImages.length === 1 ? "h-48" : "h-32"
+                          }`}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              "/placeholder.svg";
+                          }}
+                        />
+                        {/* Show remaining count overlay on 4th image */}
+                        {index === 3 && postImages.length > 4 && (
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <span className="text-white text-2xl font-bold">
+                              +{postImages.length - 4}
+                            </span>
+                          </div>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeImage(index)}
+                          className="absolute top-1 right-1 h-6 w-6 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 )}
 
@@ -651,12 +741,13 @@ export default function SocialFeed() {
                 )}
 
                 {/* Preview badges */}
-                {(postImage || postLocation) && (
+                {(postImages.length > 0 || postLocation) && (
                   <div className="flex gap-2 mt-2 flex-wrap">
-                    {postImage && (
+                    {postImages.length > 0 && (
                       <Badge variant="secondary" className="text-xs">
                         <ImageIcon className="h-3 w-3 mr-1" />
-                        Image attached
+                        {postImages.length} image
+                        {postImages.length > 1 ? "s" : ""} attached
                       </Badge>
                     )}
                     {postLocation && (
@@ -677,19 +768,27 @@ export default function SocialFeed() {
                             variant="ghost"
                             size="sm"
                             className={`text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 ${
-                              postImage
+                              postImages.length > 0
                                 ? "bg-purple-100 dark:bg-purple-900/30"
                                 : ""
                             }`}
-                            disabled={!isLoggedIn}
+                            disabled={
+                              !isLoggedIn || postImages.length >= MAX_IMAGES
+                            }
                             onClick={() => setShowImageModal(true)}
                           >
                             <ImageIcon className="h-4 w-4 mr-1" />
-                            <span className="text-xs">Photo</span>
+                            <span className="text-xs">
+                              {postImages.length > 0
+                                ? `Photos (${postImages.length})`
+                                : "Photo"}
+                            </span>
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          Add a photo to your post
+                          {postImages.length >= MAX_IMAGES
+                            ? `Maximum ${MAX_IMAGES} images reached`
+                            : `Add photos (${postImages.length}/${MAX_IMAGES})`}
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -880,7 +979,13 @@ function CommentItem({
   const [replyContent, setReplyContent] = useState("");
   const [isPostingReply, setIsPostingReply] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const { isLoggedIn, user } = useAuth();
+
+  const handleReplyEmojiSelect = (emoji: string) => {
+    setReplyContent((prev) => prev + emoji);
+    setShowEmojiPicker(false);
+  };
 
   const hasReplies = comment.replies && comment.replies.length > 0;
   const maxDepth = 2; // Maximum nesting level
@@ -1009,6 +1114,34 @@ function CommentItem({
                     }
                   }}
                 />
+                <Popover
+                  open={showEmojiPicker}
+                  onOpenChange={setShowEmojiPicker}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30"
+                      disabled={isPostingReply}
+                    >
+                      <Smile className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-2" align="end">
+                    <div className="grid grid-cols-8 gap-1">
+                      {EMOJI_LIST.map((emoji, index) => (
+                        <button
+                          key={index}
+                          className="p-1 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded text-lg"
+                          onClick={() => handleReplyEmojiSelect(emoji)}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <Button
                   size="sm"
                   className="h-7 text-xs"
@@ -1056,6 +1189,232 @@ function CommentItem({
   );
 }
 
+// LinkedIn-style image grid component
+interface ImageGridProps {
+  images: string[];
+}
+
+function ImageGrid({ images }: ImageGridProps) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  if (!images || images.length === 0) return null;
+
+  const openLightbox = (index: number) => {
+    setCurrentImageIndex(index);
+    setLightboxOpen(true);
+  };
+
+  const closeLightbox = () => setLightboxOpen(false);
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  // LinkedIn-style grid layouts
+  const getGridLayout = () => {
+    switch (images.length) {
+      case 1:
+        return (
+          <div
+            className="mt-3 rounded-lg overflow-hidden cursor-pointer"
+            onClick={() => openLightbox(0)}
+          >
+            <img
+              src={images[0]}
+              alt="Post image"
+              className="w-full h-auto max-h-[500px] object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "/placeholder.svg";
+              }}
+            />
+          </div>
+        );
+      case 2:
+        return (
+          <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg overflow-hidden">
+            {images.map((img, idx) => (
+              <div
+                key={idx}
+                className="cursor-pointer aspect-square"
+                onClick={() => openLightbox(idx)}
+              >
+                <img
+                  src={img}
+                  alt={`Post image ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "/placeholder.svg";
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        );
+      case 3:
+        return (
+          <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg overflow-hidden">
+            <div
+              className="row-span-2 cursor-pointer"
+              onClick={() => openLightbox(0)}
+            >
+              <img
+                src={images[0]}
+                alt="Post image 1"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/placeholder.svg";
+                }}
+              />
+            </div>
+            <div className="cursor-pointer" onClick={() => openLightbox(1)}>
+              <img
+                src={images[1]}
+                alt="Post image 2"
+                className="w-full h-full object-cover aspect-square"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/placeholder.svg";
+                }}
+              />
+            </div>
+            <div className="cursor-pointer" onClick={() => openLightbox(2)}>
+              <img
+                src={images[2]}
+                alt="Post image 3"
+                className="w-full h-full object-cover aspect-square"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/placeholder.svg";
+                }}
+              />
+            </div>
+          </div>
+        );
+      case 4:
+        return (
+          <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg overflow-hidden">
+            {images.map((img, idx) => (
+              <div
+                key={idx}
+                className="cursor-pointer aspect-square"
+                onClick={() => openLightbox(idx)}
+              >
+                <img
+                  src={img}
+                  alt={`Post image ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "/placeholder.svg";
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        );
+      default:
+        // 5+ images - show 4 with +N overlay
+        return (
+          <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg overflow-hidden">
+            {images.slice(0, 4).map((img, idx) => (
+              <div
+                key={idx}
+                className="relative cursor-pointer aspect-square"
+                onClick={() => openLightbox(idx)}
+              >
+                <img
+                  src={img}
+                  alt={`Post image ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "/placeholder.svg";
+                  }}
+                />
+                {idx === 3 && images.length > 4 && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                    <span className="text-white text-3xl font-bold">
+                      +{images.length - 4}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+    }
+  };
+
+  return (
+    <>
+      {getGridLayout()}
+
+      {/* Lightbox Modal */}
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent className="max-w-4xl w-full bg-black/95 border-none p-0">
+          {/* Visually hidden title for accessibility */}
+          <DialogTitle className="sr-only">
+            Image {currentImageIndex + 1} of {images.length}
+          </DialogTitle>
+          <div className="relative flex items-center justify-center min-h-[60vh]">
+            {/* Close button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={closeLightbox}
+              className="absolute top-2 right-2 z-10 text-white hover:bg-white/20 rounded-full"
+            >
+              <X className="h-6 w-6" />
+            </Button>
+
+            {/* Previous button */}
+            {images.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={prevImage}
+                className="absolute left-2 z-10 text-white hover:bg-white/20 rounded-full h-12 w-12"
+              >
+                <ChevronUp className="h-8 w-8 rotate-[-90deg]" />
+              </Button>
+            )}
+
+            {/* Current image */}
+            <img
+              src={images[currentImageIndex]}
+              alt={`Image ${currentImageIndex + 1}`}
+              className="max-h-[80vh] max-w-full object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "/placeholder.svg";
+              }}
+            />
+
+            {/* Next button */}
+            {images.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={nextImage}
+                className="absolute right-2 z-10 text-white hover:bg-white/20 rounded-full h-12 w-12"
+              >
+                <ChevronDown className="h-8 w-8 rotate-[-90deg]" />
+              </Button>
+            )}
+
+            {/* Image counter */}
+            {images.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white bg-black/50 px-3 py-1 rounded-full text-sm">
+                {currentImageIndex + 1} / {images.length}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 interface PostCardProps {
   post: Post;
   onDelete?: (postId: string) => void;
@@ -1065,16 +1424,15 @@ function PostCard({ post, onDelete }: PostCardProps) {
   // Initialize liked state from server data (persists across refresh!)
   const [liked, setLiked] = useState(post.isLikedByCurrentUser ?? false);
   const [likeCount, setLikeCount] = useState(post.likes);
-  const [following, setFollowing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
+  const [showCommentEmojiPicker, setShowCommentEmojiPicker] = useState(false);
   // Likers state
   const [showLikersModal, setShowLikersModal] = useState(false);
   const [likers, setLikers] = useState<PostLiker[]>([]);
@@ -1082,6 +1440,14 @@ function PostCard({ post, onDelete }: PostCardProps) {
   const [likersPreview, setLikersPreview] = useState<PostLiker[]>([]);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const { isLoggedIn, user } = useAuth();
+  // Use global connection context for synced state across all components
+  const { isConnected, connect, disconnect, isConnecting } = useConnections();
+
+  // Check if connected using global state (falls back to API data initially)
+  const following =
+    isConnected(post.author.id) ||
+    (post.author.isConnectedToCurrentUser ?? false);
+  const isFollowing = isConnecting(post.author.id);
 
   const isOfficial = post.author.role === "official";
   const isOwnPost = user?.id === post.authorId || user?.id === post.author?.id;
@@ -1162,31 +1528,22 @@ function PostCard({ post, onDelete }: PostCardProps) {
     }
   };
 
+  const handleCommentEmojiSelect = (emoji: string) => {
+    setNewComment((prev) => prev + emoji);
+    setShowCommentEmojiPicker(false);
+  };
+
   const handleFollow = async () => {
     if (!isLoggedIn) {
       toast.error("Please login to connect with users");
       return;
     }
 
-    setIsFollowing(true);
-    try {
-      const token = getToken();
-      if (token) {
-        if (following) {
-          await disconnectFromUser(post.author.id, token);
-          setFollowing(false);
-          toast.success("Disconnected");
-        } else {
-          await connectWithUser(post.author.id, token);
-          setFollowing(true);
-          toast.success("Connected!");
-        }
-      }
-    } catch (err) {
-      console.error("Failed to update connection:", err);
-      toast.error("Failed to update connection");
-    } finally {
-      setIsFollowing(false);
+    // Use global connection context for synced state
+    if (following) {
+      await disconnect(post.author.id, post.author.name);
+    } else {
+      await connect(post.author.id, post.author.name);
     }
   };
 
@@ -1379,15 +1736,18 @@ function PostCard({ post, onDelete }: PostCardProps) {
             <span>{post.location}</span>
           </div>
         )}
-        {post.image && (
-          <div className="mt-3 rounded-lg overflow-hidden">
-            <img
-              src={post.image || "/placeholder.svg"}
-              alt="Post image"
-              className="w-full h-auto"
-            />
-          </div>
-        )}
+        {/* LinkedIn-style image grid */}
+        {(post.images && post.images.length > 0) || post.image ? (
+          <ImageGrid
+            images={
+              post.images && post.images.length > 0
+                ? post.images
+                : post.image
+                ? [post.image]
+                : []
+            }
+          />
+        ) : null}
       </CardContent>
       {/* Likers Modal */}
       <Dialog open={showLikersModal} onOpenChange={setShowLikersModal}>
@@ -1572,6 +1932,34 @@ function PostCard({ post, onDelete }: PostCardProps) {
                       }
                     }}
                   />
+                  <Popover
+                    open={showCommentEmojiPicker}
+                    onOpenChange={setShowCommentEmojiPicker}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30"
+                        disabled={isPostingComment}
+                      >
+                        <Smile className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-2" align="end">
+                      <div className="grid grid-cols-8 gap-1">
+                        {EMOJI_LIST.map((emoji, index) => (
+                          <button
+                            key={index}
+                            className="p-1 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded text-lg"
+                            onClick={() => handleCommentEmojiSelect(emoji)}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <Button
                     size="sm"
                     className="h-8"

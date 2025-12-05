@@ -18,9 +18,10 @@ import {
   Shield,
   Loader2,
 } from "lucide-react";
-import { getConnections, disconnectFromUser } from "@/lib/api-service";
+import { getConnections } from "@/lib/api-service";
 import { getToken } from "@/lib/auth-service";
 import { useAuth } from "@/components/auth-provider";
+import { useConnections } from "@/components/connection-provider";
 import type { User } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -29,10 +30,9 @@ export default function ConnectionsPage() {
   const [filteredConnections, setFilteredConnections] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [disconnectingIds, setDisconnectingIds] = useState<Set<string>>(
-    new Set()
-  );
   const { isLoggedIn, isLoading: authLoading } = useAuth();
+  // Use global connection context for synced state
+  const { disconnect, isConnecting } = useConnections();
 
   const fetchConnections = useCallback(async () => {
     const token = getToken();
@@ -77,27 +77,11 @@ export default function ConnectionsPage() {
   }, [searchQuery, connections]);
 
   const handleDisconnect = async (userId: string, userName: string) => {
-    const token = getToken();
-    if (!token) {
-      toast.error("Please login to manage connections");
-      return;
-    }
-
-    setDisconnectingIds((prev) => new Set([...prev, userId]));
-
-    try {
-      await disconnectFromUser(userId, token);
+    // Use global connection context for synced state
+    const success = await disconnect(userId, userName);
+    if (success) {
+      // Update local list
       setConnections((prev) => prev.filter((u) => u.id !== userId));
-      toast.success(`Disconnected from ${userName}`);
-    } catch (error) {
-      console.error("Failed to disconnect:", error);
-      toast.error("Failed to disconnect");
-    } finally {
-      setDisconnectingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(userId);
-        return next;
-      });
     }
   };
 
@@ -290,9 +274,9 @@ export default function ConnectionsPage() {
                       size="sm"
                       className="border-red-200 text-red-600 hover:bg-red-50"
                       onClick={() => handleDisconnect(user.id, user.name)}
-                      disabled={disconnectingIds.has(user.id)}
+                      disabled={isConnecting(user.id)}
                     >
-                      {disconnectingIds.has(user.id) ? (
+                      {isConnecting(user.id) ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <UserMinus className="h-4 w-4" />

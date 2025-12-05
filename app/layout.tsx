@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import AccessibilityProvider from "@/components/accessibility-provider";
 import { AuthProvider } from "@/components/auth-provider";
+import { ConnectionProvider } from "@/components/connection-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
@@ -24,8 +25,10 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <AuthProvider>
-            <AccessibilityProvider>{children}</AccessibilityProvider>
-            <Toaster />
+            <ConnectionProvider>
+              <AccessibilityProvider>{children}</AccessibilityProvider>
+              <Toaster />
+            </ConnectionProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

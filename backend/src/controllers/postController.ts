@@ -56,7 +56,7 @@ const formatPostResponse = (
   post: {
     id: string;
     content: string;
-    image: string | null;
+    images: string[];
     location: string | null;
     comments: number;
     shares: number;
@@ -73,11 +73,14 @@ const formatPostResponse = (
     _count?: { postLikes: number };
     postLikes?: { userId: string }[];
   },
-  currentUserId?: string
+  currentUserId?: string,
+  connectedUserIds?: Set<string>
 ) => ({
   id: post.id,
   content: post.content,
-  image: post.image,
+  images: post.images,
+  // Keep backward compatibility - return first image as 'image' field
+  image: post.images.length > 0 ? post.images[0] : null,
   location: post.location,
   likes: post._count?.postLikes ?? 0,
   comments: post.comments,
@@ -86,6 +89,7 @@ const formatPostResponse = (
     ? post.postLikes?.some(like => like.userId === currentUserId) ?? false 
     : false,
   createdAt: post.createdAt.toISOString(),
+  authorId: post.author.id,
   author: {
     id: post.author.id,
     name: post.author.name,
@@ -94,6 +98,9 @@ const formatPostResponse = (
     role: post.author.role,
     isVerified: post.author.isVerified,
     createdAt: post.author.createdAt.toISOString(),
+    isConnectedToCurrentUser: currentUserId && connectedUserIds
+      ? connectedUserIds.has(post.author.id)
+      : false,
   },
 });
 
@@ -103,6 +110,16 @@ export const getFeed = async (req: AuthRequest, res: Response): Promise<void> =>
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
     const currentUserId = req.userId;
+
+    // Fetch user's connections to determine isConnectedToCurrentUser
+    let connectedUserIds = new Set<string>();
+    if (currentUserId) {
+      const connections = await prisma.connection.findMany({
+        where: { userId: currentUserId },
+        select: { connectedId: true },
+      });
+      connectedUserIds = new Set(connections.map(c => c.connectedId));
+    }
 
     const posts = await prisma.post.findMany({
       include: {
@@ -134,7 +151,7 @@ export const getFeed = async (req: AuthRequest, res: Response): Promise<void> =>
     const total = await prisma.post.count();
 
     res.json({
-      posts: posts.map(post => formatPostResponse(post, currentUserId)),
+      posts: posts.map(post => formatPostResponse(post, currentUserId, connectedUserIds)),
       pagination: {
         page,
         limit,
@@ -197,6 +214,16 @@ export const getMyPosts = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const currentUserId = req.userId;
     
+    // Fetch user's connections
+    let connectedUserIds = new Set<string>();
+    if (currentUserId) {
+      const connections = await prisma.connection.findMany({
+        where: { userId: currentUserId },
+        select: { connectedId: true },
+      });
+      connectedUserIds = new Set(connections.map(c => c.connectedId));
+    }
+    
     const posts = await prisma.post.findMany({
       where: { authorId: req.userId },
       include: {
@@ -222,7 +249,7 @@ export const getMyPosts = async (req: AuthRequest, res: Response): Promise<void>
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json(posts.map(post => formatPostResponse(post, currentUserId)));
+    res.json(posts.map(post => formatPostResponse(post, currentUserId, connectedUserIds)));
   } catch (error) {
     throw new AppError('Failed to get user posts', 500, 'INTERNAL_ERROR');
   }
@@ -230,12 +257,25 @@ export const getMyPosts = async (req: AuthRequest, res: Response): Promise<void>
 
 export const createPost = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { content, image, location } = req.body;
+    const { content, image, images, location } = req.body;
+    
+    // Support both single 'image' (backward compat) and 'images' array
+    let imageList: string[] = [];
+    if (images && Array.isArray(images)) {
+      imageList = images.filter((img: string) => typeof img === 'string' && img.trim());
+    } else if (image && typeof image === 'string' && image.trim()) {
+      imageList = [image];
+    }
+    
+    // Limit to 10 images max
+    if (imageList.length > 10) {
+      imageList = imageList.slice(0, 10);
+    }
 
     const post = await prisma.post.create({
       data: {
         content,
-        image,
+        images: imageList,
         location,
         authorId: req.userId!,
       },
@@ -276,6 +316,16 @@ export const getPost = async (req: AuthRequest, res: Response): Promise<void> =>
     const { postId } = req.params;
     const currentUserId = req.userId;
 
+    // Fetch user's connections
+    let connectedUserIds = new Set<string>();
+    if (currentUserId) {
+      const connections = await prisma.connection.findMany({
+        where: { userId: currentUserId },
+        select: { connectedId: true },
+      });
+      connectedUserIds = new Set(connections.map(c => c.connectedId));
+    }
+
     const post = await prisma.post.findUnique({
       where: { id: postId },
       include: {
@@ -304,7 +354,7 @@ export const getPost = async (req: AuthRequest, res: Response): Promise<void> =>
       throw new AppError('Post not found', 404, 'NOT_FOUND');
     }
 
-    res.json(formatPostResponse(post, currentUserId));
+    res.json(formatPostResponse(post, currentUserId, connectedUserIds));
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
@@ -332,14 +382,39 @@ export const updatePost = async (req: AuthRequest, res: Response): Promise<void>
       throw new AppError('Not authorized to update this post', 403, 'FORBIDDEN');
     }
 
-    const { location } = req.body;
+    // Fetch user's connections
+    let connectedUserIds = new Set<string>();
+    if (currentUserId) {
+      const connections = await prisma.connection.findMany({
+        where: { userId: currentUserId },
+        select: { connectedId: true },
+      });
+      connectedUserIds = new Set(connections.map(c => c.connectedId));
+    }
+
+    const { location, images } = req.body;
+    
+    // Build update data
+    const updateData: { content?: string; images?: string[]; location?: string | null } = {};
+    
+    if (content) updateData.content = content;
+    if (location !== undefined) updateData.location = location;
+    
+    // Handle images - support both 'image' (single) and 'images' (array)
+    if (images !== undefined) {
+      if (Array.isArray(images)) {
+        updateData.images = images.filter((img: string) => typeof img === 'string' && img.trim()).slice(0, 10);
+      } else {
+        updateData.images = [];
+      }
+    } else if (image !== undefined) {
+      // Backward compat: single image
+      updateData.images = image ? [image] : [];
+    }
+    
     const post = await prisma.post.update({
       where: { id: postId },
-      data: {
-        ...(content && { content }),
-        ...(image !== undefined && { image }),
-        ...(location !== undefined && { location }),
-      },
+      data: updateData,
       include: {
         author: {
           select: {
@@ -362,7 +437,7 @@ export const updatePost = async (req: AuthRequest, res: Response): Promise<void>
       },
     });
 
-    res.json(formatPostResponse(post, currentUserId));
+    res.json(formatPostResponse(post, currentUserId, connectedUserIds));
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
@@ -497,6 +572,13 @@ export const unlikePost = async (req: AuthRequest, res: Response): Promise<void>
       },
     });
 
+    // Fetch user's connections
+    const connections = await prisma.connection.findMany({
+      where: { userId },
+      select: { connectedId: true },
+    });
+    const connectedUserIds = new Set(connections.map(c => c.connectedId));
+
     // Fetch the updated post with like count
     const updatedPost = await prisma.post.findUnique({
       where: { id: postId },
@@ -522,7 +604,7 @@ export const unlikePost = async (req: AuthRequest, res: Response): Promise<void>
       },
     });
 
-    res.json(formatPostResponse(updatedPost!, userId));
+    res.json(formatPostResponse(updatedPost!, userId, connectedUserIds));
   } catch (error) {
     if (error instanceof AppError) {
       throw error;

@@ -307,14 +307,17 @@ export async function getPublicFeed(): Promise<Post[]> {
 export async function createPost(
   content: string, 
   token: string, 
-  options?: { image?: string; location?: string }
+  options?: { image?: string; images?: string[]; location?: string }
 ): Promise<Post> {
+  // Support both single image (backward compat) and images array
+  const images = options?.images || (options?.image ? [options.image] : undefined);
+  
   return apiRequest<Post>(
     API_ENDPOINTS.POSTS.CREATE, 
     "POST", 
     { 
       content, 
-      image: options?.image,
+      images,
       location: options?.location 
     }, 
     token

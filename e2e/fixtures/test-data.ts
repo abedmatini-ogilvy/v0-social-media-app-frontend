@@ -194,6 +194,8 @@ export const apiEndpoints = {
     profile: '/users/profile',
     connections: '/users/connections',
     suggestedConnections: '/users/suggested-connections',
+    connect: (userId: string) => `/users/connect/${userId}`,
+    disconnect: (userId: string) => `/users/disconnect/${userId}`,
   },
   posts: {
     feed: '/posts/feed',

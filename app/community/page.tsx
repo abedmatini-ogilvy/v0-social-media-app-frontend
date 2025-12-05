@@ -21,26 +21,22 @@ import {
   Loader2,
   Filter,
 } from "lucide-react";
-import {
-  getSuggestedConnections,
-  getConnections,
-  connectWithUser,
-  disconnectFromUser,
-} from "@/lib/api-service";
+import { getSuggestedConnections, getConnections } from "@/lib/api-service";
 import { getToken } from "@/lib/auth-service";
 import { useAuth } from "@/components/auth-provider";
+import { useConnections } from "@/components/connection-provider";
 import type { User } from "@/lib/types";
 import { toast } from "sonner";
 
 export default function CommunityPage() {
   const [suggestedUsers, setSuggestedUsers] = useState<User[]>([]);
   const [connections, setConnections] = useState<User[]>([]);
-  const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [connectingIds, setConnectingIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("discover");
   const { isLoggedIn, isLoading: authLoading, user: currentUser } = useAuth();
+  // Use global connection context for synced state
+  const { isConnected, connect, disconnect, isConnecting } = useConnections();
 
   const fetchData = useCallback(async () => {
     const token = getToken();
@@ -57,7 +53,6 @@ export default function CommunityPage() {
 
       setSuggestedUsers(suggested);
       setConnections(myConnections);
-      setConnectedIds(new Set(myConnections.map((u) => u.id)));
     } catch (error) {
       console.error("Failed to fetch data:", error);
       toast.error("Failed to load community data");
@@ -73,57 +68,13 @@ export default function CommunityPage() {
   }, [authLoading, fetchData]);
 
   const handleConnect = async (userId: string, userName: string) => {
-    const token = getToken();
-    if (!token) {
-      toast.error("Please login to connect with people");
-      return;
-    }
-
-    setConnectingIds((prev) => new Set([...prev, userId]));
-
-    try {
-      await connectWithUser(userId, token);
-      setConnectedIds((prev) => new Set([...prev, userId]));
-      toast.success(`Connected with ${userName}`);
-    } catch (error) {
-      console.error("Failed to connect:", error);
-      toast.error("Failed to connect");
-    } finally {
-      setConnectingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(userId);
-        return next;
-      });
-    }
+    // Use global connection context for synced state
+    await connect(userId, userName);
   };
 
   const handleDisconnect = async (userId: string, userName: string) => {
-    const token = getToken();
-    if (!token) {
-      toast.error("Please login to manage connections");
-      return;
-    }
-
-    setConnectingIds((prev) => new Set([...prev, userId]));
-
-    try {
-      await disconnectFromUser(userId, token);
-      setConnectedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(userId);
-        return next;
-      });
-      toast.success(`Disconnected from ${userName}`);
-    } catch (error) {
-      console.error("Failed to disconnect:", error);
-      toast.error("Failed to disconnect");
-    } finally {
-      setConnectingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(userId);
-        return next;
-      });
-    }
+    // Use global connection context for synced state
+    await disconnect(userId, userName);
   };
 
   // Filter users based on search
@@ -143,8 +94,8 @@ export default function CommunityPage() {
   const filteredConnections = filterUsers(connections);
 
   const renderUserCard = (user: User) => {
-    const isConnected = connectedIds.has(user.id);
-    const isConnecting = connectingIds.has(user.id);
+    const userIsConnected = isConnected(user.id);
+    const userIsConnecting = isConnecting(user.id);
     const isSelf = currentUser?.id === user.id;
 
     return (
@@ -208,7 +159,7 @@ export default function CommunityPage() {
 
           {!isSelf && (
             <div className="flex gap-2 mt-4">
-              {isConnected ? (
+              {userIsConnected ? (
                 <>
                   <Button
                     variant="outline"
@@ -226,9 +177,9 @@ export default function CommunityPage() {
                     size="sm"
                     className="border-gray-200 text-gray-600 hover:bg-gray-50"
                     onClick={() => handleDisconnect(user.id, user.name)}
-                    disabled={isConnecting}
+                    disabled={userIsConnecting}
                   >
-                    {isConnecting ? (
+                    {userIsConnecting ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <>
@@ -243,9 +194,9 @@ export default function CommunityPage() {
                   size="sm"
                   className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                   onClick={() => handleConnect(user.id, user.name)}
-                  disabled={isConnecting}
+                  disabled={userIsConnecting}
                 >
-                  {isConnecting ? (
+                  {userIsConnecting ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-1" />
                   ) : (
                     <UserPlus className="h-4 w-4 mr-1" />

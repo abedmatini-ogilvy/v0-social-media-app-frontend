@@ -87,18 +87,24 @@ export interface UserSettings {
   updatedAt: string
 }
 
+// Author in post - includes connection status
+export interface PostAuthor extends User {
+  isConnectedToCurrentUser?: boolean
+}
+
 // Post model
 export interface Post {
   id: string
   content: string
-  image?: string | null
+  images?: string[]  // Multiple images support (max 10)
+  image?: string | null  // Backward compatibility - first image
   location?: string | null
   likes: number
   comments: number
   shares: number
   isLikedByCurrentUser?: boolean
   authorId: string
-  author: User
+  author: PostAuthor
   createdAt: string
   updatedAt?: string
 }
